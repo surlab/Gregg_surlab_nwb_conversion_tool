@@ -1,0 +1,10 @@
+name: replace_with_env_name
+channels:
+  - defaults
+dependencies:
+  - jupyter
+  - jupyterlab
+  - jupytext
+  - pip
+  - python=3.8
+prefix: C:\Users\Gregg\anaconda3\envs\replace_with_env_name

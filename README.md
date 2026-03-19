@@ -1,12 +1,52 @@
-# python-template-repo-surlab
-Template repository for convenient setup of new python repos
-Following these instructions will create a new repo with appropriate directory structure and files, create an appropriate conda environment, and hopefully ensure that the bat scripts work for automating common operations for users that prefer not to use the command line (updating the environment files, creating and pushing work in progress (WIP) commits, opening a prompt and activating the environemnt, opening jupyter notebook/lab, and running scripts/main.py)
-####Instructions
-1. Update the python version if necessary. Currently, following these instructions will set up a conda environment using python 3.8 If this is out of date, the environment_cross_platform.yml in THIS template repo should be updated (both remote and local) to reflect the current version before proceeding. (Please also update this step in this readme as well.)
-1. Make sure conda is in your windows path (you can check this by opening a new command prompt (search CMD) and entering the following command
-        >>>conda info --envs
-    If this works, you are good to go. Otherwise you need to install anaconda or add it to your windows path. See answer here by "Simba" https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10
-1. Follow the instructions here to create a repository from this template: https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template
-1. Clone the newly created repository to a windows (10?) machine
-1. Double click the file "dev_install_win" or "dev_install_win.bat" to run it. This will ask for text string nae of the newly created repository, and will use this to replace any instance of "replace_with_env_name" found in the contained text documents. 
-1. Thats it!
+# Gregg_surlab_nwb_conversion_tool
+Description of repository here
+## Installation instructions
+These instructions require:
+1. a recent Python distribution, preferably anaconda 
+1. an installation of git. 
+1. (@devs don't forget to indicate if visual studio or other software is required)
+1. The correct environment yamls. Please check the two environment files before trusting them - The dev should do make sure these work before deployment but may have gotten lazy. Packages only available through pip are not automatically included in the environment_cross_platform.yml. If there are dependancies under pip in the environment_explicit.yml file, consider copying them to the environment_cross_platform.yml or be prepared to pip install them yourself.
+#### For a windows machine:
+1. Open a command prompt and run the following commands
+```bash
+cd ..\documents\code #or similar as relevant for your machine
+git clone git@github.com:surlab/Gregg_surlab_nwb_conversion_tool.git
+```
+2. Double click the file "user_install_win.bat" to run it. This should set up the conda environment and all dependencies. 
+#### OR For a windows or non -indows machine
+Open a teriman and run the following commands
+```bash
+cd ..\documents\code #or similar as relevant for your machine
+git clone git@github.com:surlab/Gregg_surlab_nwb_conversion_tool.git
+cd Gregg_surlab_nwb_conversion_tool
+conda env create -f environment_cross_platform.yml
+Conda activate Gregg_surlab_nwb_conversion_tool
+call pip install -e .
+```
+The installation should now be complete and the Gregg_surlab_nwb_conversion_tool conda environment should still be activated. 
+## Usage instructions
+1. make a copy of default_config.py and name it config.py.
+1. change the path in config.py to a data directory containing the appropriate input files defined below
+#### For a windows machine:
+Double click the file "main.bat" to run it. 
+#### OR For a windows or non -indows machine
+Open a terminal and run the following commands
+```bash
+cd path/to/Gregg_surlab_nwb_conversion_tool
+conda activate Gregg_surlab_nwb_conversion_tool
+python scripts/main.py
+```
+### Input Files:
+The code expects to find a directory or tree of nested directories where some the following files in each directory:
+1. input file 1 description
+1. input file 2 description
+### Output Files:
+Running the code sucessfully produces the following files
+1. input file 1 description
+1. input file 2 description
+# Quality Control (QC)
+It is important that you QC the results of this code and do not trust it blindly. Here is my process for QC.
+1. Some of the output files should be images. look through them for the following htings:
+# Credit
+This code was created for the surlab at MIT by _________. 
+The template for this repository was created by Gregg Heller.  

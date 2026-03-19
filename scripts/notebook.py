@@ -12,9 +12,8 @@
 #     language: python
 #     name: python3
 # ---
-
 # + [markdown] colab_type="text" id="view-in-github"
-# <a href="https://colab.research.google.com/github/GreggHeller1/replace_with_env_name/blob/main/scripts/notebook.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+# <a href="https://colab.research.google.com/github/GreggHeller1/Gregg_surlab_nwb_conversion_tool/blob/main/scripts/notebook.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 # + id="71ee021b"
 #settings
 # %load_ext autoreload
@@ -28,12 +27,12 @@ print(in_colab)
 # + colab={"base_uri": "https://localhost:8080/"} id="4e02e926" outputId="84475a29-508b-4d96-adf5-e85665e994d2"
 #installs (for colab only, run this once)
 if in_colab:
-    # ! git clone https://github.com/GreggHeller1/replace_with_env_name.git
+    # ! git clone https://github.com/GreggHeller1/Gregg_surlab_nwb_conversion_tool.git
 # + id="5e9731ca"
 #local imports
 #cwd if in colab for imports to work
 if in_colab:
-    # %cd /content/replace_with_env_name
+    # %cd /content/Gregg_surlab_nwb_conversion_tool
     
 from src import data_io as io
 from src import plotting as plot
@@ -43,7 +42,6 @@ import main
 # + id="db51ef2e"
 #imports
 import os
-
 #import xarray as xr
 #import pandas as pd
 #import numpy as np
@@ -56,17 +54,15 @@ import os
 #define paths
 #cwd if in colab for file loading to work
 if in_colab:
-    # %cd /content/replace_with_env_name/scripts
+    # %cd /content/Gregg_surlab_nwb_conversion_tool/scripts
     
 print(os.getcwd())
 base_dir = os.path.split(os.getcwd())[0]
 test_path = os.path.join(base_dir, 'demo_data', 'test.txt')
 print(test_path)
 print(os.path.exists(test_path))
-
 data_path = "your data path here"
 print(os.path.exists(data_path))
-
 # + colab={"base_uri": "https://localhost:8080/"} id="b3586a50" outputId="56f159c6-3dbc-4b37-d217-083fb5d2e792"
 #data inputs
 loaded_data = main.main_io()
@@ -78,12 +74,9 @@ results = main.main_computation(loaded_data)
 #import cProfile
 #cProfile.run('main.main_computation(loaded_data)')
 # -
-
 #save results
 main.main_saving(results)
-
 #reload results for plotting
 loaded_results = main.reload_results_for_plotting()
-
 #make and save plots
 main.main_plotting(loaded_results)

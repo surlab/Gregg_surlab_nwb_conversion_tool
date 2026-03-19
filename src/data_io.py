@@ -1,7 +1,6 @@
 """generic description of this module, data_io.py(io).
 generated automatically on project creation from the surlab python-template-repo. 
 please update this docstring as you develop.
-
 data_io.py should contain functions used for loading or saving data.
 """
 from src import config as cfg
@@ -10,11 +9,6 @@ import os
 #import h5py
 import json
 #from datetime import datetime as dt
-
-
-
-
-
 ################
 # data in
 #################
@@ -23,8 +17,6 @@ def readfile(path):
     with open(path, 'r') as f:
         lines = f.read()
         print(lines)
-
-
 def loadmat(path):
     try:
         f = _loadmat(path)
@@ -36,8 +28,6 @@ def loadmat(path):
         pass
         #return f['dend_cell']
     return f
-
-
 def _check_keys( dict):
     """
     checks if entries in dictionary are mat-objects. If yes
@@ -47,8 +37,6 @@ def _check_keys( dict):
         if isinstance(dict[key], sio.matlab.mio5_params.mat_struct):
             dict[key] = _todict(dict[key])
     return dict
-
-
 def _todict(matobj):
     """
     A recursive function which constructs from matobjects nested dictionaries
@@ -61,8 +49,6 @@ def _todict(matobj):
         else:
             dict[strg] = elem
     return dict
-
-
 def _loadmat(filename):
     """
     this function should be called instead of direct scipy.io .loadmat
@@ -72,8 +58,6 @@ def _loadmat(filename):
     """
     data = sio.loadmat(filename, struct_as_record=False, squeeze_me=True)
     return _check_keys(data)
-
-
 ################
 # data out
 #################
@@ -87,15 +71,12 @@ def save_named_iterable_to_json(**kwargs):
             os.makedirs(summary_path)
         with open(file_path, "w") as f:
             json.dump(value, f, indent=4)
-
-
 def save_csv(df, name_keywords=''):
     dfname = f'{name_keywords}.csv'
     df_path = os.path.join(cfg.collect_summary_at_path, dfname)
     print(f'Saving dataframe to {df_path}')
     df.to_csv(df_path)
     
-
 def save_plot(fig, current_data_dir):
     # save it local with the other data
     file_name = "annotated_dendrite.svg"

@@ -1,4 +1,4 @@
-name: replace_with_env_name
+name: Gregg_surlab_nwb_conversion_tool
 channels:
   - defaults
 dependencies:
@@ -145,4 +145,4 @@ dependencies:
       - click==8.1.7
       - mypy-extensions==1.0.0
       - pathspec==0.12.1
-prefix: C:\Users\Gregg\anaconda3\envs\replace_with_env_name
+prefix: C:\Users\Gregg\anaconda3\envs\Gregg_surlab_nwb_conversion_tool

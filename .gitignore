@@ -133,6 +133,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# SurLab raw arrays in demo_data (often hundreds of MB–GB; keep locally, not on GitHub)
-demo_data/**/*.mat
+# SurLab LFP continuous array only (~GB per session; GitHub limit 100 MB per file)
+demo_data/**/lfp_data_*.mat
 demo_results/

@@ -30,6 +30,36 @@ Downstream tooling should treat the conversion table as the spec; this document 
 | `<session_ID>` | From `sessionInfo` |
 | `<datatypeID>` | **Full stream datatype ID** for one recording (optional prefix + base ID). Substitute separately for each stream present in the session (e.g. `GCaMP7f_traces`, `pupil_behTSeries`). Used in `surlab_filename`, `requirement_condition` (`if_datatype_present:<datatypeID>`), and per-stream `sessionInfo` column headers. |
 
+**Session identity** comes from **`sessionInfo.csv`** (`animal_ID`, `session_ID`) and the session folder path **`{animal_ID}_{session_ID}/`**. The pair **`(animal_ID, session_ID)`** must be **unique within a dataset**; **`session_ID` alone** need not be globally unique.
+
+### **Common `<datatypeID>` prefix examples (informative)**
+
+Prefixes are **lab- or dataset-specific labels** placed **before the base datatype ID**, joined by one underscore:
+
+**`<prefix>_<baseID>`** → full **`<datatypeID>`** (e.g. `GCaMP7f` + `_` + `traces` → **`GCaMP7f_traces`**).
+
+They are **not standardized globally** — pick names that are clear for your archive. The table lists **common examples**; use others when needed and document new ones in the dataset README.
+
+| Base ID | Example full `<datatypeID>` | Typical content |
+| :---- | :---- | :---- |
+| **`traces`** | `GCaMP7f_traces`, `GCaMP6s_traces`, `GCaMP8m_traces`, `jGCaMP8_traces` | Green calcium imaging (Suite2p / 2P) |
+| **`traces`** | `tdTomato_traces`, `mCherry_traces`, `mNeptune_traces` | Red / structural / tricolor indicator lines (separate stream per line) |
+| **`traces`** | `F_traces`, `F_chan2_traces` | Dual-plane or raw channel exports when kept as separate streams |
+| **`behTSeries`** | `pupil_behTSeries`, `deeplabcutPupil_behTSeries`, `eye_behTSeries` | Pupil / eye position (often DeepLabCut) |
+| **`behTSeries`** | `wheel_behTSeries`, `runningWheel_behTSeries` | Running wheel position or velocity |
+| **`behTSeries`** | `movement_behTSeries`, `locomotion_behTSeries` | Other continuous behavioral kinematics |
+| **`behEvents`** | `lick_behEvents`, `lever_behEvents` | Event times (licks, lever presses, …) |
+| **`spikeTimes`**, **`lfp`** | `spikeTimes`, `lfp` (no prefix) | Fixed base IDs; use as-is in **`sessionInfo`** |
+| **`trialInfo`** | `trialInfo` (no prefix) | Single trial table per session; see below |
+
+**`trialInfo` is not prefixed.** There is one boolean column **`trialInfo`** and one file **`trialInfo.csv`** per session. “Passive” vs “behavioral” refers to **which optional columns** you include, not a separate datatype ID:
+
+| Experiment style | Typical optional `trialInfo` columns (all optional except start/stop) |
+| :---- | :---- |
+| **Passive viewing** (e.g. grating, movie) | `stimulus_onset__s`, `stimulus_offset__s`, `grating_orientation__degrees`, `grating_spatial_frequency__cycles_per_degree`, `grating_drift_speed__m_per_s`, `grating_drift_direction__degrees` |
+| **Operant / choice behavior** | Above as needed, plus `correct`, `output`, `reaction_time__s`, `reward`, `punish`, `num_licks` |
+| **Auditory task** | `tone_frequency__Hz`, `tone_intensity__dB`, plus operant columns as needed |
+
 **Stages** in the table: **1** session metadata; **2** spike times; **3** optical **`traces`** (one block per `<datatypeID>` stream); **4** **`behTSeries`** (one block per stream); **5** **`trialInfo`**; later stages (e.g. LFP) numbered with gaps as added.
 
 NWB target columns in the table may be marked **SPECULATIVE** until validated against real data and the official NWB validator.
@@ -48,13 +78,32 @@ Within each session folder, there are three different types of files:
 
 - **data** are stored in **`.mat`** (Matlab) or **`.npz`** (NumPy) files. Either extension is valid; **`mat_2_py` / `py_2_mat`** convert between them. **Python-native export should prefer `.npz`**. Each file contains time series or spike times for the session.
 - Session-level metadata are stored in `.json` **schema** files and should be **duplicated** in **`sessionInfo.csv`** where possible. Timestamps of each sampled time point relative to **`zero_time`** are stored in **`<datatypeID>_timestamps`**.mat / `.npz` (native frame times; see clarifications below).
-- **metadata** are stored in tabular **`.csv`** files: **`trialInfo_*.csv`** (trial-wise events) and **`<datatypeID>_metadata_*.csv`** (one row per unit, ROI, electrode, feature, etc.). Metadata files follow the naming conventions below.
+- **metadata** are stored in tabular **`.csv`** files: **`trialInfo.csv`** (trial-wise events) and **`<datatypeID>_metadata.csv`** (one row per unit, ROI, electrode, feature, etc.) inside the session folder.
 
 Therefore, each **dataType** typically has four associated files within each experimental session folder: **`<datatypeID>_data`**.mat / `.npz`, **`<datatypeID>_schema`**.json, **`<datatypeID>_metadata`**.csv, and **`<datatypeID>_timestamps`**.mat / `.npz` (except where noted, e.g. spike times). **`<datatypeID>`** is the **full stream ID** (often camelCase with an optional informative prefix, e.g. `GCaMP7f_traces`, `pupil_behTSeries`, `spikeTimes`, `lfp`).
 
-**Filename pattern.** The required **leading `<datatypeID>` token**, **role** (`_data`, `_schema`, `_metadata`, `_timestamps`), **`<datasetID>`**, **`<animal_ID>`**, **`<session_ID>`**, and **extension** identify the file. Additional tokens may appear in the middle for human readability; parsers should match on the leading datatype ID, role, and extension. See **`conversion_table.csv`** for the authoritative patterns.
+### **Filenames: minimal (canonical) vs verbose (optional alias)**
 
-**`trialInfo`** uses a fixed stem (no per-stream prefix): **`trialInfo_<datasetID>_<animal_ID>_<session_ID>.csv`** (optional extra middle tokens allowed).
+Session scope is defined by the **parent folder** `{animal_ID}_{session_ID}/` under `{datasetID}/`. **Inside that folder**, filenames should be **minimal** — they do **not** repeat `datasetID`, `animal_ID`, or `session_ID`.
+
+| Location | Canonical (minimal) | Verbose alias (optional) |
+| :---- | :---- | :---- |
+| **Dataset root** | `sessionInfo_<datasetID>.csv` | extra tokens allowed if name still starts with `sessionInfo_` |
+| **Session folder** | `sessionInfo_single_session.csv` | — |
+| **Per-stream data** | `<datatypeID>_data.{mat\|npz}` | `<datatypeID>_data_<datasetID>_<animal_ID>_<session_ID>.{mat\|npz}` |
+| **Schema** | `<datatypeID>_schema.json` | `<datatypeID>_schema_<datasetID>_<animal_ID>_<session_ID>.json` |
+| **Metadata** | `<datatypeID>_metadata.csv` | `<datatypeID>_metadata_<datasetID>_<animal_ID>_<session_ID>.csv` |
+| **Timestamps** | `<datatypeID>_timestamps.{mat\|npz}` | `<datatypeID>_timestamps_<datasetID>_<animal_ID>_<session_ID>.{mat\|npz}` |
+| **Trials** | `trialInfo.csv` | `trialInfo_<datasetID>_<animal_ID>_<session_ID>.csv` |
+
+**Parsing rules**
+
+- **Writers** (exporters) should emit **minimal** names for new SurLab packages.
+- **Readers** must accept **either** minimal or verbose names when resolving files **inside** the correct session directory (match on **`<datatypeID>` + role + extension**; ignore optional middle tokens in verbose names).
+- **Verbose** names are for legacy exports, loose file copies, or human search — not required for a well-formed session tree.
+- Fixed-ID streams without a prefix use the base ID in the basename (e.g. `spikeTimes_data.npz`, `lfp_timestamps.npz`).
+
+See **`conversion_table.csv`** for authoritative minimal patterns per row.
 
 ![][image1]
 
@@ -81,10 +130,11 @@ Therefore, each **dataType** typically has four associated files within each exp
 | **E. Session folders** | **`{animal_ID}_{session_ID}`** with literal join; **`session_ID`** may contain dots. |
 | **F. Multiple trace streams** | **One stream per indicator / channel product**, not one combined array: e.g. `GCaMP7f_traces`, `tdTomato_traces`, `mCherry_traces` as separate **`<datatypeID>`** values and separate **sessionInfo** flags. Dual-plane raw channels (**F**, **F_chan2**) → separate streams when processed separately; tricolor **classification** (mCherry / mNeptune / tdTomato) → separate streams per indicator, with class labels on **ROIs** in **metadata**, not separate streams per class unless each is a distinct recording. |
 | **G. Required `sessionInfo`** | **`institution`**, **`lab`**, **`experimenter`**, **`species`**, **`sex`**, **`age__days`**, **`strain`** are **required in the exported `sessionInfo` CSV** even if absent from raw acquisition logs. Ingest may merge **dataset-level config** or a **sidecar** (e.g. `dataset_config.yaml`) before writing **`sessionInfo`**. |
-| **G2. `trialInfo.correct`** | **Recommended**, not required for passive / open-loop experiments (e.g. grating viewing with no choice). Omit the column when there is no operant outcome. |
+| **G2. `trialInfo` optional columns** | Aside from **`start_time__s`** and **`stop_time__s`**, all standardized trial columns (stimuli, behavior, **`correct`**, etc.) are **optional** with no warn-if-missing. Include only what the experiment uses. |
 | **H. Conversion table path** | Authoritative: **repo root** `conversion_table.csv`; optional copy in **`for_cursor/`** for handoff. |
 | **I. `.mat` vs `.npz`** | Both valid; **prefer `.npz`** for Python-exported sessions. |
 | **J. Empty behavioral streams** | If a stream has no data (e.g. empty wheel array), set **sessionInfo flag = 0**, **omit** data/schema/metadata/timestamp files, and document in the README. Do not write placeholder **(0, 0)** arrays with flag **1**. |
+| **K. Session filenames** | **Canonical:** minimal basenames inside `{animal_ID}_{session_ID}/` (no repeated IDs). **Optional verbose alias:** embed `<datasetID>_<animal_ID>_<session_ID>` after the role token; parsers accept both. |
 
 ## **Experiment description**
 
@@ -137,11 +187,11 @@ Session-level fields that were historically only in **schema JSON** (e.g. acquis
 
 These files hold continuous-time physiology (fluorescence, LFP, …) or behavioral streams (pupil, marker positions, …). Each **dataType** has **data**, **schema** (optional if fully mirrored in `sessionInfo`), **metadata**, and **timestamps** (except where noted).
 
-**data** and **schema** share one **`.mat`** or **`.npz`** file. **File name:** `<datatypeID>_data_<datasetID>_<animal_ID>_<session_ID>` (optional extra tokens allowed).
+**data** and **schema** share one **`.mat`** or **`.npz`** file. **Canonical file name:** `<datatypeID>_data.{mat|npz}` (verbose alias allowed; see above).
 
-**metadata** is tabular: rows are recorded **units** or **ROIs** (or electrodes, events, features, …); columns use standardized **snake_case** names. **File name:** `<datatypeID>_metadata_<datasetID>_<animal_ID>_<session_ID>.csv`.
+**metadata** is tabular: rows are recorded **units** or **ROIs** (or electrodes, events, features, …); columns use standardized **snake_case** names. **Canonical:** `<datatypeID>_metadata.csv`.
 
-**timestamps** (when required): `<datatypeID>_timestamps_<datasetID>_<animal_ID>_<session_ID>`.mat / `.npz`.
+**timestamps** (when required): **Canonical:** `<datatypeID>_timestamps.{mat|npz}`.
 
 **Currently covered data types:** Optical physiology (fluorescence traces); local field potentials; spike times; spike waveforms; behavioral events; behavioral time series.
 
@@ -184,16 +234,20 @@ These files hold continuous-time physiology (fluorescence, LFP, …) or behavior
 
 ## **Trial information files**
 
-**One table per session.** Set **`trialInfo = 1`** in **`sessionInfo.csv`** when present. **File name:** `trialInfo_<datasetID>_<animal_ID>_<session_ID>.csv` (optional extra middle tokens allowed).
+**One table per session.** Set **`trialInfo = 1`** in **`sessionInfo.csv`** when present. **Canonical file name:** `trialInfo.csv` inside the session folder (verbose alias allowed).
 
-Tabular **`.csv`**: one row per trial. **Required** columns (headers use **dunder + unit** where applicable):
+Tabular **`.csv`**: one row per trial.
+
+**Required** columns (only these two; headers use **dunder + unit** where applicable):
 
 | Column | Description |
 | :---- | :---- |
 | start_time__s | Trial start (seconds relative to **`zero_time`**) |
 | stop_time__s | Trial end (seconds relative to **`zero_time`**) |
 
-**Stimuli**
+All other standardized columns below are **optional** — include only those that apply to the experiment. Validators should **not** warn when optional columns are absent.
+
+**Stimuli** (optional)
 
 | Column | Description |
 | :---- | :---- |
@@ -206,7 +260,7 @@ Tabular **`.csv`**: one row per trial. **Required** columns (headers use **dunde
 | grating_drift_speed__m_per_s | Drift speed (m/s) |
 | grating_drift_direction__degrees | Drift direction |
 
-**Behavioral outputs**
+**Behavioral outputs** (optional)
 
 | Column | Description |
 | :---- | :---- |
@@ -214,18 +268,18 @@ Tabular **`.csv`**: one row per trial. **Required** columns (headers use **dunde
 | output | Categorical labels (`press`, `no_press`, …) |
 | num_licks | Count of licks in the trial (integer) |
 
-**Reinforcement**
+**Reinforcement** (optional)
 
 | Column | Description |
 | :---- | :---- |
 | reward | Boolean: reward delivered |
 | punish | Boolean: punishment delivered |
 
-**Outcome**
+**Outcome** (optional)
 
 | Column | Description |
 | :---- | :---- |
-| correct | **Binary** `0` or `1` when present (**recommended**; omit for passive viewing with no operant outcome). Non-binary legacy encodings should be converted with a validation warning. |
+| correct | **Binary** `0` or `1` when present; omit for passive viewing with no operant outcome. Non-binary legacy encodings should be converted with a validation warning. |
 
 ![][image5]
 

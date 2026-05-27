@@ -1,0 +1,23 @@
+---
+description: Use logging instead of print; check logs first when debugging
+alwaysApply: true
+---
+
+# Logging and debugging
+
+- Use Python **`logging`**, not **`print`**, for operational output. Add logging as you write or touch code—do not defer it.
+- **Default**: overwrite the log file on each run (`mode='w'` on `FileHandler`). Only append or rotate if the user explicitly asks.
+- Log to a predictable path (e.g. `runlog.txt` under the run output dir or repo root); mention the path in the bat or README.
+- **When asked to debug**: **read the log file first**. If no logging exists for the failing step, **add it** before guessing at a fix—even if the bug seems obvious.
+- Use sensible levels: `INFO` for progress, `WARNING` for recoverable issues, `ERROR` for failures, `DEBUG` only when needed for diagnosis.
+
+```python
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=[logging.FileHandler(log_path, mode="w"), logging.StreamHandler()],
+)
+logger = logging.getLogger(__name__)
+```

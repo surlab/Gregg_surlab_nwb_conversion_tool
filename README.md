@@ -1,52 +1,118 @@
 # Gregg_surlab_nwb_conversion_tool
-Description of repository here
-## Installation instructions
-These instructions require:
-1. a recent Python distribution, preferably anaconda 
-1. an installation of git. 
-1. (@devs don't forget to indicate if visual studio or other software is required)
-1. The correct environment yamls. Please check the two environment files before trusting them - The dev should do make sure these work before deployment but may have gotten lazy. Packages only available through pip are not automatically included in the environment_cross_platform.yml. If there are dependancies under pip in the environment_explicit.yml file, consider copying them to the environment_cross_platform.yml or be prepared to pip install them yourself.
-#### For a windows machine:
-1. Open a command prompt and run the following commands
+
+Research-focused converter between SurLab dataset format and NWB, driven by
+`conversion_table.csv`.
+
+## Installation
+
+Requirements:
+- Python 3.8+
+- Conda recommended
+
 ```bash
-cd ..\documents\code #or similar as relevant for your machine
-git clone git@github.com:surlab/Gregg_surlab_nwb_conversion_tool.git
-```
-2. Double click the file "user_install_win.bat" to run it. This should set up the conda environment and all dependencies. 
-#### OR For a windows or non -indows machine
-Open a teriman and run the following commands
-```bash
-cd ..\documents\code #or similar as relevant for your machine
-git clone git@github.com:surlab/Gregg_surlab_nwb_conversion_tool.git
-cd Gregg_surlab_nwb_conversion_tool
 conda env create -f environment_cross_platform.yml
-Conda activate Gregg_surlab_nwb_conversion_tool
-call pip install -e .
-```
-The installation should now be complete and the Gregg_surlab_nwb_conversion_tool conda environment should still be activated. 
-## Usage instructions
-1. make a copy of default_config.py and name it config.py.
-1. change the path in config.py to a data directory containing the appropriate input files defined below
-#### For a windows machine:
-Double click the file "main.bat" to run it. 
-#### OR For a windows or non -indows machine
-Open a terminal and run the following commands
-```bash
-cd path/to/Gregg_surlab_nwb_conversion_tool
 conda activate Gregg_surlab_nwb_conversion_tool
-python scripts/main.py
+pip install -e .
 ```
-### Input Files:
-The code expects to find a directory or tree of nested directories where some the following files in each directory:
-1. input file 1 description
-1. input file 2 description
-### Output Files:
-Running the code sucessfully produces the following files
-1. input file 1 description
-1. input file 2 description
-# Quality Control (QC)
-It is important that you QC the results of this code and do not trust it blindly. Here is my process for QC.
-1. Some of the output files should be images. look through them for the following htings:
-# Credit
-This code was created for the surlab at MIT by _________. 
-The template for this repository was created by Gregg Heller.  
+
+## Primary Tool: Stage-1 SurLab -> NWB
+
+Stage 1 converts session metadata from:
+- `sessionInfo_<datasetID>.csv` in dataset directory, and/or
+- `sessionInfo_single_session.csv` in session directory
+
+Mapping and required/recommended checks are defined in `conversion_table.csv`.
+
+### One-line run (cross-platform)
+
+```bash
+python scripts/run_stage1_conversion.py --dataset-dir demo_data/SeqBias_AstroBlock_NPX --session-dir demo_data/SeqBias_AstroBlock_NPX/AstroDREADD25_20240702 --conversion-table conversion_table.csv --output-nwb demo_results/AstroDREADD25_20240702_stage1.nwb --output-matrix demo_results/session_validation_matrix.csv --stage 1
+```
+
+### Windows run (double-click / terminal)
+
+Use `developer_scripts/run_stage1_conversion_win.bat`.
+
+### Validate-only mode
+
+```bash
+python scripts/run_stage1_conversion.py --dataset-dir demo_data/SeqBias_AstroBlock_NPX --session-dir demo_data/SeqBias_AstroBlock_NPX/AstroDREADD25_20240702 --conversion-table conversion_table.csv --output-nwb demo_results/AstroDREADD25_20240702_stage1.nwb --output-matrix demo_results/session_validation_matrix.csv --stage 1 --validate-only
+```
+
+## Inputs and Output Formats
+
+Inputs:
+- SurLab CSV metadata files (`sessionInfo_*.csv`)
+- Conversion mapping table (`conversion_table.csv`)
+- Stage flag (current phase)
+
+Outputs:
+- NWB file (PyNWB)
+- Validation matrix CSV where:
+  - columns are sessions
+  - rows are conversion-table checks
+  - status values include:
+    - `found`
+    - `missing (Required)`
+    - `not found (recommended)`
+
+## Notes
+
+- Current implementation focuses on stage 1 metadata and uses a file-level
+  stage guard (skip files belonging to later stages).
+- Deterministic NWB identifier rule:
+  `identifier = f"{animal_ID}__{session_ID}"`.
+
+## Task 3: Validate Existing NWB Files
+
+Use official `pynwb.validate()` to validate every `.nwb` file under one dataset
+directory.
+
+One-line run:
+
+```bash
+python scripts/validate_nwb_dataset.py --dataset-dir demo_data/SeqBias_AstroBlock_NPX
+```
+
+Windows shortcut:
+
+- `developer_scripts/run_nwb_validation_task3_win.bat`
+
+Outputs:
+
+- Per-NWB validation report text file in the same directory as each NWB file:
+  `<nwb_stem>_pynwb_validation_report.txt`
+- Dataset-level summary table in dataset root:
+  `nwb_validation_summary.csv`
+
+Summary table columns:
+
+- `session`
+- `nwb_file`
+- `report_file`
+- `passed`
+- `failed`
+- `number_failed`
+- `note`
+
+## Task 4: Reverse Conversion (NWB -> SurLab)
+
+Task 4 uses `conversion_table.csv` (stage-filtered) and reconstructs SurLab session
+metadata from NWB files.
+
+Workflow:
+
+1. For each `.nwb` found under a dataset directory, write a one-row
+   `sessionInfo_single_session.csv` in that NWB file's session directory.
+2. Concatenate those single-session rows into one dataset-level
+   `sessionInfo_<datasetID>.csv` in the dataset root.
+
+One-line run:
+
+```bash
+python scripts/run_task4_reverse_conversion.py --dataset-dir demo_data/SeqBias_AstroBlock_NPX --conversion-table conversion_table.csv --stage 4
+```
+
+Windows shortcut:
+
+- `developer_scripts/run_task4_reverse_conversion_win.bat`

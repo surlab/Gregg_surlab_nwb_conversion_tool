@@ -1,0 +1,14 @@
+---
+description: Scientific code style, layout, configs, and coupling for this repo
+alwaysApply: true
+---
+
+# Research project core
+
+- Follow the **good research code handbook** mindset: correct, reproducible, readable science code—not a polished app.
+- Optimize for **scientists reading the code**: simple control flow, obvious structure, minimal cleverness.
+- Avoid **nuanced syntax** (e.g. decorators, heavy metaprogramming) unless it clearly reduces complexity for readers.
+- **Layout**: keep **Python and MATLAB only** in `src/`, **flat** (no `src/subpackages/`). Primary pipeline **bat** entry points live in the **repo root**; other user launchers in `scripts/`; developer bats in `developer_scripts/`—never inside `src/`.
+- **Decouple** modules: clear boundaries, pass data explicitly, avoid hidden globals.
+- **Parameters**: do not hardcode. **Infer** paths and names from data, configs, or conventions when possible; otherwise use **one shared config** (e.g. `default_config.py` or a single YAML)—prefer **one config file over many**; document keys briefly.
+- **Names**: self-documenting variables and functions; short **docstrings** on public functions and non-obvious modules.

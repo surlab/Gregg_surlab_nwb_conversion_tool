@@ -1,0 +1,20 @@
+---
+description: Cache expensive ops; save plot-ready data before every plot
+alwaysApply: true
+---
+
+# Caching and plot data
+
+## Expensive operations
+
+- If an operation is **expensive** (large I/O, heavy computation), **cache results to a data file** even when the immediate goal is a figure or summary.
+- Store caches under a **gitignored** location (e.g. `demo_results/`, `.cache/`, or a path from config)—confirm with the user when adding a new cache location.
+- **Tell the user** you are adding a cache and ask whether the location and format are appropriate before writing large artifacts.
+
+## Plot data (always)
+
+- **Always save a copy of directly plotted data immediately before plotting** (bar heights, dot x/y, curve samples, etc.).
+- Design plotting functions so plot data can be **passed in and reused**—tweak labels/colors without recomputing underlying data.
+- Prefer **CSV or JSON** for plot data. Avoid platform-specific formats like `.pkl` when possible.
+- Use **`.npy` only for large arrays**; document dimensions in the **filename** (e.g. `spike_counts_nTrials384_nUnits120.npy`).
+- Separate **compute plot data** from **render figure** so process loops (style tweaks) never rerun heavy steps.

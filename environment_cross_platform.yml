@@ -7,4 +7,11 @@ dependencies:
   - jupytext
   - pip
   - python=3.8
+  - numpy
+  - scipy
+  - pandas
+  - pytest
+  - pip:
+      - pynwb>=2.8
+      - hdmf>=3.14
 prefix: C:\Users\Gregg\anaconda3\envs\Gregg_surlab_nwb_conversion_tool

@@ -1,0 +1,16 @@
+NWB packaging TODO
+- [x] pull in marcos data
+- [X] pull in the documentation in text form
+- [X] write the description
+    Task 0 - validate the current documentation. We want consistent naming and casing, consistent filename style, and inclusion of units directly in the fieldnames when applicable (on the surlab data format side)
+    - [ ] Task one: have it make the conversion_table csv. 
+        - [x] Stage 1 sessionInfo (+ per-stream discovery rules); stage 2 spikeTimes; stage 3 traces; stage 4 behTSeries; stage 5 trialInfo (LFP deferred ~stage 6)
+        - [ ] This conversion table becomes the ground truth for what the format really IS, and how it realtes to NWB. It should stand completely independant of the documentation if necessary
+        - [x] columns - row_type (timestamps_array, data_array or metadata_field), surlab_file_location, surlab_filename, fieldname_surlab, units, requirement_level, requirement_condition, nwb_location, nwb_fieldname, nwb_type, mapping_rationale, stage, notes; placeholders <datasetID> <animal_ID> <session_ID> <datatypeID>
+        - [ ] then add files one by one using a combination of the documentatino and the example files - review after each. Remaining: lfp (stage 6), spike waves, behEvents per-stream sessionInfo if needed
+        - [ ] The mapping to NWB will require some internet searching and looking for what is commonly done in NWB - we don't want to be reinventing the wheel. Where the underlying data is matched, we want to follow the preccedent set by kilosort, suite2p, deeplabcut and common behavioral data (maybe Allen institute?)
+    - [ ] Task two (different agent) - after the table is complete for a given stage, add functions to convert from surlab format to NWB. We want the functions to be as general as possible - simply looping over what is there and using the specifics defined by the conversion table csv to guide placement of both the format specified data types and fields and extenstions (columns that are present but not specifically listed in the conversion table are treated as "experiment specific"). If something cannot be specified fully by what is in the table (or fall into this "experiment specific" category) then alert me that we need to enhance or modify the table to cover it. During this process we also want to validate each of the required files/fields. Since we are looping over the data side (file by file and field by field), we should create a copy of the conversion_table and then fill in as we discover a new file or field. At the end all thats left is to see if any "required" or "recomended" fields were not discovered. Ideally these can be run independantly (validation without conversion thanks to a flag or something). 
+    
+    Task 3 - (third agent) After each stage run the conversion and then validate the NWB file with official NWB validator. Provide a view access to the developer (me) so I can inspect 
+    - Task 4 - 4th agent - reverse conversion from the NWB to the surlab format - again generic as possible, iterating through the NWB file and using the table to guide. 
+    - Task 5 round trip validator compares values between original version and double converted. Write this to compare every file - most will be missing in stage one (expected failures) but we should see the sucesses

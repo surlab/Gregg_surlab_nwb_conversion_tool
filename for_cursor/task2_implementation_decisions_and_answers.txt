@@ -1,0 +1,204 @@
+SurLab → NWB: Task 2 — implementation decisions and answers
+===========================================================
+Consolidated from chat (user responses). Reference for implementing
+validator.py, sur_to_nwb.py, and nwb_to_sur.py.
+
+-------------------------------------------------------------------------------
+Answers to pre-implementation questions (numbered as in the prior chat)
+-------------------------------------------------------------------------------
+
+1) Stage / phase vs files on disk
+   - If the code loops over all files in the base dir and session dir, it will
+     encounter files that belong to a later phase than the one being run.
+   - For now: add a check — if the file is in the current phase, continue;
+     otherwise skip. This guard is temporary; remove it once all phases are
+     supported end-to-end.
+
+2) Single source of truth for NWB placement
+   - The conversion table should be the single source of truth.
+   - Prefer a concrete, unambiguous column such as `nwb_path` (or equivalent)
+     rather than informal tokens like "notes_or_session_description".
+   - Allow flexibility where a full path cannot be fixed in advance — e.g.
+     dataset-specific / experiment-specific columns that are not listed row-
+     by-row in the table still need a clear rule (see §8).
+
+3) row_type and unknown types
+   - Rely on the file-level phase check in (1). Do not add extra skip logic
+     for unknown row_types for now (only file-level skips).
+
+4) Session selection (sessionInfo_single_session.csv)
+   - Context: current demo has one example dataset and one example session.
+   - Broader multi-session selection can be refined when needed; not blocking
+     the first implementation on demo layout.
+
+5) Dataset ID and filenames
+   - Dataset ID is taken from the folder name (convention for resolving
+     `sessionInfo_<datasetID>.csv` and related paths).
+
+6) "Discovered" for validation
+   - Discovered means: file is present, column exists, and value is non-empty.
+   - For booleans, 0 or false is acceptable (counts as present/valid).
+   - Possibly the same tolerance for some time/start fields — TBD per field.
+   - See §D for NWB/PyNWB-oriented notes on types and bad values (documentation
+     audit).
+
+7) Working copy of the table vs user-visible output
+   - The filled-row copy of the conversion table is more of an internal
+     implementation detail.
+   - The most useful output is a dataset-level validation matrix:
+       - Columns: one column per **session** (that session’s files under the
+         session subfolder, plus the corresponding row in the dataset-level
+         `sessionInfo_<datasetID>.csv` for that session).
+       - Rows: each check derived from the conversion table (required file,
+         required field, recommended field, conditional rows as applicable).
+       - Cell status (examples; exact labels can match export tooling):
+           * **found** — present and passes the “discovered” rule (see §6).
+           * **missing (Required)** — required check failed.
+           * **not found (recommended)** — optional / recommended check not
+             satisfied (informational, not a hard fail).
+
+8) Where to put dataset_specific columns from sessionInfo.csv
+   - LabMetaData and experiment_description are both parts of the NWB file.
+   - Choose deliberately for reversibility, clarity, and outsider readability.
+   - Decision: prefer LabMetaData for experiment-specific / extra sessionInfo
+     columns (over stuffing experiment_description), for clearer structure and
+     round-trip semantics.
+
+9) Derived NWB identifier (decision + options)
+   - Context: the conversion_table row `(derived_file_identifier)` refers to
+     `NWBFile.identifier` in NWB. PyNWB requires this argument at construction
+     time; it is **not** a column in SurLab CSV — the converter must **derive**
+     a unique text string.
+   - **Option A — Deterministic from SurLab IDs (recommended for round-trip):**
+     Build a string from fields you trust to be unique within the archive,
+     e.g. `f"{animal_ID}__{session_ID}"` or include `datasetID` from the folder
+     name: `f"{datasetID}__{animal_ID}__{session_ID}"`. Same input always yields
+     the same identifier (good for regeneration and debugging). Risk: if two
+     different animals could share the same `session_ID` text, a two-part rule
+     may collide unless `animal_ID` is always included and unique.
+   - **Option B — UUID (or other opaque ID):**
+     Generate a new UUID per written NWB file (e.g. `uuid.uuid4().hex`). Very
+     unlikely to collide; simple globally. Trade-off: **not stable** across
+     re-runs unless you persist and reuse the UUID somewhere outside SurLab;
+     round-trip “same file again” comparisons must not assume the identifier
+     matches unless you store it.
+   - **Option C — session_ID only:**
+     Use `session_ID` alone as `identifier` only if the project guarantees it is
+     globally unique across all subjects and datasets (often false).
+   - **Decision (user confirmed): use Option A (deterministic)** with
+     `identifier = f"{animal_ID}__{session_ID}"`.
+   - Optional future safeguard: validator can warn if the same derived
+     identifier appears for two different sessions in one batch.
+
+10) Environment and PyNWB versions
+    - The environment files may not yet list everything needed.
+    - Pin minimum versions of PyNWB / HDMF (and related stack) suitable for
+      DANDI-style metadata; document those pins in env/requirements as the
+      implementation lands.
+
+11) Code layout vs existing src/ placeholders
+    - Existing modules (e.g. data_io.py) are placeholders; use data_io (or
+      similar) only for pure I/O such as loading .mat in Python if helpful.
+    - Core conversion/validation logic should live in dedicated modules, at
+      minimum:
+        - validator.py
+        - sur_to_nwb.py
+        - nwb_to_sur.py
+    - Additional small modules are fine if they keep responsibilities clear.
+
+-------------------------------------------------------------------------------
+A) Summary matrix — resolved (see §7)
+-------------------------------------------------------------------------------
+User clarification: columns = sessions; rows = checks; cell states include
+found / missing (Required) / not found (recommended).
+
+-------------------------------------------------------------------------------
+B) Proposal: `nwb_path` column (single source of truth for wiring)
+-------------------------------------------------------------------------------
+Goal: unambiguous machine parsing, aligned with PyNWB attribute names, with one
+escape hatch for dynamic dataset-specific columns.
+
+**Syntax (proposal — Task 1 can add column and fill rows incrementally):**
+
+1. **File (NWBFile top-level)** — `file:<attr>`
+   - Maps to constructing/setting `NWBFile` attribute `<attr>` in PyNWB.
+   - Examples: `file:institution`, `file:lab`, `file:session_id`,
+     `file:session_start_time`, `file:session_description`, `file:keywords`,
+     `file:related_publications`, `file:identifier`, `file:notes`,
+     `file:experiment_description`.
+
+2. **Subject** — `subject:<attr>`
+   - Maps to `NWBFile.subject` (create `Subject` if missing) then `<attr>`.
+   - Examples: `subject:subject_id`, `subject:species`, `subject:sex`,
+     `subject:age`, `subject:strain`, `subject:description`.
+
+3. **LabMetaData (named extension object)** — `lab_meta_data:<ClassName>.<attr>`
+   - Maps to a registered `LabMetaData` subclass instance in
+     `NWBFile.lab_meta_data` with neurodata_type / name convention TBD in code
+     (e.g. one container `SurLabSessionInfoExtras` holding key/value or a small
+     table for extra CSV columns).
+   - Example: `lab_meta_data:SurLabSessionInfoExtras.extra_columns` if stored
+     as a structured dict; exact shape to match reverse conversion needs.
+
+4. **Dataset-specific / not fixed column name** — literal sentinel in table row:
+   `lab_meta_data:SurLabSessionInfoExtras.*`
+   - Meaning: for columns matching the generic `dataset_specific` rule, the
+     **runtime** path is `lab_meta_data:SurLabSessionInfoExtras.<actual_csv_header>`.
+   - The `*` documents “column name comes from source,” not a literal attribute.
+
+5. **Later stages (containers under file)** — extend the same style, e.g.
+   `file:units` for the Units table (with additional columns in the table row
+     describing column names), `file:acquisition/<timeseries_name>` only if we
+     introduce named series; prefer keeping complex targets in `nwb_path` +
+     companion columns (`nwb_fieldname`, etc.) until stage 2–4 are stable.
+
+**Deprecated / human-only columns:** keep `nwb_location` + `nwb_fieldname` in
+the CSV for prose until migrated; code should prefer `nwb_path` when present.
+
+-------------------------------------------------------------------------------
+C) Identifier — resolved
+-------------------------------------------------------------------------------
+- Chosen strategy: deterministic ID from SurLab fields.
+- Formula: `identifier = f"{animal_ID}__{session_ID}"`.
+
+-------------------------------------------------------------------------------
+D) NWB / PyNWB notes: empty strings, "0", and types (from PyNWB stable docs)
+-------------------------------------------------------------------------------
+Source: PyNWB `NWBFile` and `Subject` constructor documentation (readthedocs,
+stable). This is API behavior, not a guarantee of DANDI upload validation
+(DANDI may impose stricter checks).
+
+- **NWBFile** requires `session_description`, `identifier` (str), and
+  `session_start_time` (datetime). Omitting them is not allowed at construction.
+  A non-parsable “date” from CSV should fail **before** NWB (validation).
+- **identifier:** type is str (“unique text identifier”). PyNWB does not spell
+  out “non-empty” in the short doc; empty string should be treated as **invalid**
+  for our SurLab validator (same as missing).
+- **session_start_time:** must be a real `datetime`, not the integer 0 or a raw
+  string — conversion must parse `session_date` (+ timezone policy) into
+  `datetime`.
+- **Subject.subject_id:** optional in PyNWB (defaults `None`). For our pipeline
+  it is **required** when the conversion table marks it required; validate
+  SurLab non-empty string. The literal `"0"` is still a string and is **valid**
+  for PyNWB if you choose to allow it; scientifically it may be undesirable —
+  that is a lab policy choice, not an NWB type error.
+- **Subject.age:** `str` or `timedelta`; ISO-8601 duration recommended (e.g.
+  `P90D`). SurLab `age__days` numeric **0** should map to **`P0D`**, not the
+  string `"0"`, to match duration semantics.
+- **Subject.sex:** str; NWB schema typically restricts allowed values (e.g. M,
+  F, O, U). `"0"` would likely fail **schema** validation, not Python typing.
+- **Optional text fields** (e.g. `institution`, `lab`): PyNWB accepts str; empty
+  string may pass construction but should be treated as **missing** for
+  `requirement_level=required` in our validator (per §6).
+
+Action: run `pynwb.validate` / DANDI validator on real outputs when stage 1
+conversion exists; tighten SurLab-side rules if the official validator flags
+values that PyNWB accepted at construction.
+
+-------------------------------------------------------------------------------
+Open follow-ups (lightweight)
+-------------------------------------------------------------------------------
+
+- User: choose identifier strategy §9 (A / B / C).
+- When Task 1 adds `nwb_path`, fill stage 1 rows using §B patterns and drop
+  ambiguous tokens from older columns where possible.

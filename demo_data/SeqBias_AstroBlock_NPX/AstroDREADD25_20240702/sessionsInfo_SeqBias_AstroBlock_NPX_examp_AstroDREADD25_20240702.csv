@@ -1,0 +1,2 @@
+institution,lab,experimenter,animalID,sessID,sess_date,species,sex,age,comments,related_publication,condition,area,strain,zero_time,spikeTimes,spikeWaves,lfp,infoTrials
+MIT,SurLab,Gabrielle Drummond,AstroDREADD25,20240702,07-02-2024,Mus musculus,U,U,//,Drummond et al. (2024). doi: 10.1101/2024.10.24.620009,DPCPX,PFC,C57BL/6 wild type,spikeTimes,1,1,0,1

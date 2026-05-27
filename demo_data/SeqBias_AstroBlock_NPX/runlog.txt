@@ -1,0 +1,9 @@
+[2026-03-26 10:06:13] Starting Task 3 NWB validation run.
+[2026-03-26 10:06:13] Dataset directory: C:\Users\gregg\OneDrive\Documents\code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX
+[2026-03-26 10:06:13] Runlog path: C:\Users\gregg\OneDrive\Documents\code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\runlog.txt
+[2026-03-26 10:06:13] Found 1 NWB file(s).
+[2026-03-26 10:06:13] Validating: C:\Users\gregg\OneDrive\Documents\code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\AstroDREADD25_20240702_stage1.nwb
+[2026-03-26 10:06:15] Dataset validation summary written: C:\Users\gregg\OneDrive\Documents\code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\nwb_validation_summary.csv
+[2026-03-26 10:06:15] Validated 1 NWB file(s): 1 passed, 0 failed.
+[2026-03-26 10:06:15] Per-file reports were written next to each NWB file.
+[2026-03-26 10:06:15] Task 3 NWB validation run completed.

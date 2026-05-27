@@ -1,0 +1,10 @@
+---
+description: MATLAB written for clarity (pythonic structure and naming)
+globs: "**/*.m"
+alwaysApply: false
+---
+
+# MATLAB
+
+- Use **clear names**, small functions, and straightforward flow—same readability goals as Python in this repo.
+- Avoid deep nesting; prefer early returns and explicit variable names over cryptic abbreviations.

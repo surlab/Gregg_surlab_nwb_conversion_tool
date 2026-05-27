@@ -1,0 +1,26 @@
+check,AstroDREADD25__20240702
+stage1|na|sessionInfo_single_session.csv|(all columns above),found
+stage1|optional|experimentDesc.pdf|N/A,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv|area,found
+stage1|optional|sessionInfo_<datasetID>.csv|behEvents,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv|behTSeries,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv|condition,found
+stage1|optional|sessionInfo_<datasetID>.csv|lfp,found
+stage1|optional|sessionInfo_<datasetID>.csv|related_publication,found
+stage1|optional|sessionInfo_<datasetID>.csv|spikeTimes,found
+stage1|optional|sessionInfo_<datasetID>.csv|spikeWaves,found
+stage1|optional|sessionInfo_<datasetID>.csv|traces,not found (recommended)
+stage1|required|sessionInfo_<datasetID>.csv|(derived_file_identifier),found
+stage1|required|sessionInfo_<datasetID>.csv|age__days,missing (Required)
+stage1|required|sessionInfo_<datasetID>.csv|animal_ID,missing (Required)
+stage1|required|sessionInfo_<datasetID>.csv|experimenter,found
+stage1|required|sessionInfo_<datasetID>.csv|institution,found
+stage1|required|sessionInfo_<datasetID>.csv|lab,found
+stage1|required|sessionInfo_<datasetID>.csv|session_ID,missing (Required)
+stage1|required|sessionInfo_<datasetID>.csv|session_date,missing (Required)
+stage1|required|sessionInfo_<datasetID>.csv|sex,found
+stage1|required|sessionInfo_<datasetID>.csv|species,found
+stage1|required|sessionInfo_<datasetID>.csv|strain,found
+stage1|required|sessionInfo_<datasetID>.csv|zero_time,found
+stageRule: preserve name and value into experiment_description block or LabMetaData; document in README.|n/a|sessionInfo_<datasetID>.csv|dataset_specific,found
+stageSame rule as sessionInfo: preserve names on Units DynamicTable.|n/a|spikeTimes_metadata_<datasetID>_<animal_ID>_<session_ID>.csv|dataset_specific,not found (recommended)

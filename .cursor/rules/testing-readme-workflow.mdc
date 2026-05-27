@@ -1,0 +1,25 @@
+---
+description: Demos, tests, README, env updates, and git push prompts
+alwaysApply: true
+---
+
+# Testing, README, environment, and git workflow
+
+## Tests and demos
+
+- Provide **one or two end-to-end** demos or tests that a user can run from **Colab**, a **one-line shell command**, or a **root-level bat** (preferred for frequent pipeline steps).
+- Add **unit tests** where they catch real logic bugs (I/O edge cases, conversions, parsing)—not exhaustive coverage theater.
+
+## README (root)
+
+- **Install** steps (env manager, editable install if applicable).
+- **Primary tool**: document **inputs and outputs**—especially **data formats** (files, schemas, NWB fields), not plot aesthetics.
+- **How to run** the demo / end-to-end test (command or bat name).
+
+## After environment changes
+
+- When `environment*.yml`, `requirements*.txt`, `setup.py`, or `pyproject.toml` change, **offer** a small **`developer_scripts/*.bat`** (Windows) that recreates/updates the env in a repeatable way—user may run it locally.
+
+## Git: commit and push
+
+- After **major** changes or when **moving to a different part of the project**, **remind** the user to commit/push and **offer** an existing or minimal **`developer_scripts/*commit*push*.bat`** (or equivalent) so they can run add/commit/push in one place—do not assume unattended push.

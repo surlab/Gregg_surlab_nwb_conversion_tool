@@ -1,4 +1,5 @@
 REM comment: This script runs a few housekeeping functions before committing and pushing
+call conda activate surlab_nwb_conversion_tool
 call update_env_yml.bay
 call black src
 call black scripts

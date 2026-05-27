@@ -1,0 +1,11 @@
+---
+description: Python style (PEP 8, pythonic) for this project
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python
+
+- Follow **PEP 8** and idiomatic **pythonic** patterns: clear iteration, context managers for files, explicit is better than implicit.
+- Prefer readable multi-line structure over one-liners that obscure intent.
+- Match imports and naming style of existing files in `src/`.

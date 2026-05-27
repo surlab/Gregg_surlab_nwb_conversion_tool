@@ -1,0 +1,22 @@
+---
+description: Pipeline entry bats in repo root; use run commands for token efficiency
+alwaysApply: true
+---
+
+# Pipeline entry points
+
+- Prefer **run commands** (terminal / bat) over long inline explanations when executing pipeline steps—token-efficient and matches how the user tests.
+- Place **primary pipeline bats in the repo root** (main directory). Each bat should:
+  1. **Activate the env** (e.g. `conda activate …`)
+  2. **Run one decoupled pipeline step** (one script or module entrypoint)
+- Use **separate root bats** for significantly different, decoupled steps—not one mega-bat for the whole pipeline.
+- Put **other user launchers** (notebooks, secondary tools) in `scripts/`.
+- Put **developer/maintenance bats** (env recreate, commit/push) in `developer_scripts/`.
+- Never put bats inside `src/`.
+
+**Root bat template:**
+
+```bat
+call conda activate surlab_nwb_conversion_tool
+python scripts/run_stage1_conversion.py
+```

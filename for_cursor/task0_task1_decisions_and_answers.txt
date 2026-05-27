@@ -1,0 +1,211 @@
+SurLab → NWB: Task 0 & Task 1 — decisions and answers
+======================================================
+Consolidated from chat (user responses). Use this as reference while editing
+documentation and building the conversion table.
+
+-------------------------------------------------------------------------------
+1) Demo data vs documentation; fields only in demo
+-------------------------------------------------------------------------------
+- If demo_data disagrees with the documentation, ALERT the user — resolution
+  is case by case (no single global rule).
+- Fields that exist only in the demo (or are dataset-specific) should NOT get
+  one row per field in the conversion table. Instead use a generic
+  “dataset_specific” row (or a small number of such rows) that states the rule:
+  if a column/key appears in this file, map it into NWB as described, keeping
+  the same name. Do not duplicate that rule for every extra column.
+- Same idea for legacy names: one generic mechanism; the table does not need
+  multiple copies of identical rules.
+
+-------------------------------------------------------------------------------
+2) Canonical names vs legacy names (conversion table)
+-------------------------------------------------------------------------------
+- The conversion table uses CANONICAL names only.
+- Legacy names should still convert via the generic “dataset_specific” /
+  experiment-specific mechanism (see §1).
+- Validation should FAIL when legacy names are present (that is desired).
+
+-------------------------------------------------------------------------------
+3) Pairs, units in names, dunder convention
+-------------------------------------------------------------------------------
+- Do not store low/high cutoff as a single pair column in the canonical spec.
+  Split: separate columns for low vs high cutoff (and filter type where needed).
+- Units belong in the field name, separated from the base name by a double
+  underscore (dunder), e.g.:
+    filter_cutoff_low__Hz
+    filter_cutoff_high__Hz
+  (Canonical spelling is “cutoff”, not “cuttoff”.)
+
+-------------------------------------------------------------------------------
+4) Filenames: sessionInfo, extra tokens, typos, dates
+-------------------------------------------------------------------------------
+- Use “sessionInfo” (singular) in the documented base name.
+- Extra tokens in filenames are acceptable for user convenience as long as the
+  required prefix (beginning) and file type/extension are correct; ignore the
+  extra middle segments when matching logically.
+- Fix documentation typos (e.g. trialInfo “.cvs” → “.csv”; related_publication
+  spelling).
+- Dates: use YYYY-MM-DD format in documentation and canonical field definitions.
+
+-------------------------------------------------------------------------------
+5) Spike-sorting filter metadata (schema keys)
+-------------------------------------------------------------------------------
+- Use split keys for cutoff (see §3), not a single array field, in the canonical
+  representation.
+- Keep an explicit filter TYPE where applicable (e.g. bandpass; could be other
+  types in other datasets).
+
+-------------------------------------------------------------------------------
+6) Spike waveforms schema (neurons vs units; axes; sampling frequency)
+-------------------------------------------------------------------------------
+- “Neurons” instead of “units” in the spike waveforms context is treated as an
+  error; documentation should be corrected to align with “units” (or the
+  documented convention for that datatype).
+- “Sampling time” is meaningful to distinguish from experiment/clock time;
+  documentation should reflect that.
+- Sampling frequency should ideally be provided in the schema when applicable.
+
+-------------------------------------------------------------------------------
+7) LFP / continuous data: time axis; trial “correct” field
+-------------------------------------------------------------------------------
+- Intended convention: time on the X axis (verify against current docs and
+  align documentation — clarify whether anything remains Matlab/Python
+  dependent or if a single convention is now normative).
+- Trial field “correct” (and similar) should be BINARY in the standard.
+- If data use non-binary encodings, conversion may coerce with a documented
+  mapping, but FLAG as a violation of the recommendation / spec.
+
+-------------------------------------------------------------------------------
+8) Trial table: stimuli with units (tone frequency, intensity)
+-------------------------------------------------------------------------------
+- Units belong in the column header using the dunder convention, e.g.:
+    tone_frequency__Hz
+    tone_intensity__dB
+  Use SI-style unit symbols in the suffix (e.g. Hz, dB, s, m).
+- Cell values should be numeric only (not strings like “4kHz” / “35dB”).
+
+-------------------------------------------------------------------------------
+9) Where the conversion table CSV lives
+-------------------------------------------------------------------------------
+- Place the conversion table at the PROJECT ROOT (high visibility).
+
+-------------------------------------------------------------------------------
+10) MATLAB arrays / .mat contents
+-------------------------------------------------------------------------------
+- Treat MATLAB arrays as plain arrays without extra axis documentation inside
+  the binary file.
+- Axis semantics come from separate timestamps and metadata files (and schema),
+  not from embedding axis labels inside the .mat beyond what the format already
+  does.
+
+-------------------------------------------------------------------------------
+11) Extra columns on the conversion table
+-------------------------------------------------------------------------------
+- Add any columns that are useful and that GENERALIZE across different dataset
+  instances (examples: rationale for NWB mapping, NWB type, notes that apply
+  broadly). Avoid one-off columns that only apply to a single dataset unless
+  folded into generic rules.
+
+-------------------------------------------------------------------------------
+12) Ordering of stages / datatypes
+-------------------------------------------------------------------------------
+- Defer spike waveforms (least important) relative to the earlier stages.
+
+-------------------------------------------------------------------------------
+13) NWB mapping columns
+-------------------------------------------------------------------------------
+- Populate nwb_location / nwb_fieldname (and related) with brief RATIONALE.
+- Add a dedicated column for that rationale; user will comment if any mappings
+  should change.
+
+-------------------------------------------------------------------------------
+14) Closure of original Q&A
+-------------------------------------------------------------------------------
+- There was no fourteenth substantive answer in the original thread; the
+  numbered list had simply ended. Use this subsection for any new decisions
+  added after Task 0 / Task 1 work begins.
+
+-------------------------------------------------------------------------------
+15) Follow-up: sessionInfo, schema, units, trial table (later message)
+-------------------------------------------------------------------------------
+1. session_date does not use a dunder suffix; document as a plain date column
+   (values YYYY-MM-DD).
+2. Age column name: age__days (numeric age in days; adjust prior ISO-8601-only
+   wording accordingly where it conflicts).
+3. correct (trial outcome): binary 0/1 in the standard; non-binary legacy is a
+   validation violation.
+4. Prefer moving session-level metadata into sessionInfo.csv rather than relying
+   on schema JSON alone. For sessionInfo: do not put unit suffixes in the
+   column header; instead, cell values should follow the base__unit text pattern
+   where applicable (e.g. amplitude__V). Schema files may remain for interchange
+   but sessionInfo is the preferred tabular source of truth.
+5. Canonical sampling rate key/column: sample_frequency__Hz (not sampFreq / sampleFreq).
+6. Do not rename Xsize/Ysize with __count or __samples (misleading); leave
+   dimension sizes as plain sizes with prose meaning.
+7. Laser / PMT / Pockels-style controls are often arbitrary instrument units;
+   document allowed “arbitrary” scaling and recommend optional separate
+   calibration/conversion columns supplied by the user.
+8. Grating / visual stimulus column details: follow documentation judgement
+   where ambiguous.
+9. In field names and examples, use ASCII “um” for micrometers (not the mu
+   symbol), for easier typing.
+10. Trial-level column naming: adopt __s, __Hz, __dB, __degrees, etc. headers;
+    numeric cells (see §16 for snake_case tabular vs camelCase datatype IDs).
+11. Table 1 wording: use “units” and “ROIs”, not “neurons”, for cell-array /
+    matrix descriptions.
+
+-------------------------------------------------------------------------------
+16) Naming: snake_case tabular fields vs camelCase datatype IDs / filenames
+-------------------------------------------------------------------------------
+- **Tabular fields** (CSV column headers, JSON schema keys for tabular semantics):
+  **snake_case**. Use **full words** where agreed (session, stimulus, behavioral,
+  sample_frequency, grid_location, clustering_algorithm, primary_channel,
+  data_unit_measurement, etc.). Identifier columns end with a **capital ID**:
+  **`_ID`** after an underscore (e.g. `animal_ID`, `session_ID`, `roi_ID`,
+  `unit_ID`, `channel_ID`), not glued camelCase (`animalID`) and not lowercase
+  `animal_id`.
+- **Standard abbreviations** (LFP, ROI, PMT, FOV, 2P, SNR, TTL, etc.) use their
+  usual **capitalization** in documentation and in values; when embedded in
+  snake_case names, keep the abbreviation letters capital.
+- **Axis / matrix keys** in schema: keep **X** and **Y** capital; use
+  **X_dim**, **Y_dim**, **X_size**, **Y_size**, **X_idx**, **Y_idx** (underscore
+  after the axis letter) for uniformity.
+- **Datatype IDs** and **role segments in filenames** may stay **camelCase**
+  (e.g. `spikeTimes`, `sessionInfo_<datasetID>.csv`, `trialInfo.csv`) — this is
+  intentional; only tabular field names are required to be snake_case.
+- **Universal short tokens** still allowed where previously agreed: num, LFP,
+  ROI, and SI unit suffixes after dunder.
+
+-------------------------------------------------------------------------------
+17) conversion_table.csv — requirement_level and requirement_condition
+-------------------------------------------------------------------------------
+- **requirement_level** (per row): `required` | `recommended` | `optional` |
+  `na` (not applicable / informational).
+- **requirement_condition** (when the level applies): machine-oriented token:
+  - **`always`** — enforce whenever that row’s scope is in play (e.g. validating
+    sessionInfo for a session).
+  - **`if_datatype_present:<datatype_ID>`** — enforce only if that datatype is
+    part of the session (detection: e.g. `sessionInfo` boolean column `1` for
+    that ID, and/or presence of `spikeTimes_data*` / `spikeTimes_schema*` /
+    `spikeTimes_metadata*` under `session_dir`). Implementations may use **either**
+    the sessionInfo flag or **file glob presence** as the trigger; pick one
+    convention in code and apply it consistently.
+  - **`if_any_file_matches:<glob_or_prefix>`** — optional finer rule for Task 2
+    (e.g. legacy layouts); not required for phase 1–2 if `if_datatype_present`
+    suffices.
+- **Validation logic**: a row contributes a **required** check iff
+  `requirement_level == required` AND the condition evaluates true; **recommended**
+  iff `recommended` AND condition true (warn if missing); **optional** never fails
+  absence; **na** never fails.
+
+-------------------------------------------------------------------------------
+Summary shortcuts
+-------------------------------------------------------------------------------
+- Canonical names + dunder + units in headers; legacy/demo extras → generic
+  dataset_specific rule rows, not per-column duplication.
+- Demo vs doc conflicts → alert, case by case.
+- sessionInfo singular; flexible middle filename tokens; YYYY-MM-DD.
+- Conversion table: project root; include generalized helpful columns.
+- Spike waves deferred; filter split keys + filter type; waveforms doc fixes
+  (units not “neurons”; sampling time; provide sample_frequency__Hz when possible).
+- Trial correct: binary; coerce non-binary with violation flag.
+- Tone columns: numeric cells, unitful names in headers.

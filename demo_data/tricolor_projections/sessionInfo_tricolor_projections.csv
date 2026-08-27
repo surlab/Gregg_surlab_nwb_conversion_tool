@@ -1,0 +1,2 @@
+institution,lab,experimenter,animal_ID,session_ID,session_date,species,sex,age__days,strain,zero_time,area,condition,related_publication,GCaMP8m_traces,Neuropil_traces,pupil_behTSeries,wheel_behTSeries,passive_trialInfo,spikeTimes,lfp,spikeWaves,behEvents
+MIT,Mriganka Sur,Sofie Ahrlund Richter,exp101-a1,20260204-gratings,2026-02-04,Mus musculus,U,,flex-GCaMP8m x CamkII-Cre,GCaMP8m_traces,VISp,passive visual grating,,1,1,1,1,1,0,0,0,0

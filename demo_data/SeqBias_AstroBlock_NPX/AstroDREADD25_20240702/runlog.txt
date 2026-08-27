@@ -1,0 +1,11 @@
+2026-07-08 14:33:39,018 INFO Processing session: demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702
+2026-07-08 14:33:39,052 INFO Session validation report written: demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\session_validation_report.csv
+2026-07-08 14:33:39,065 INFO Discovery ledger written: demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\conversion_table_discovered.csv
+2026-07-08 14:33:39,222 INFO Note: NumExpr detected 32 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2026-07-08 14:33:39,222 INFO NumExpr defaulting to 8 threads.
+2026-07-08 14:33:39,741 INFO Registered device Neuropixel1.0 (Units linkage deferred)
+2026-07-08 14:33:39,741 INFO Added 309 units from spikeTimes_data_SeqBias_AstroBlock_NPX_examp_AstroDREADD25_20240702.mat
+2026-07-08 14:33:39,778 WARNING zero_time reference stream 'spikeTimes' first timestamp is 0.0031; expected ~0.
+2026-07-08 14:33:42,843 INFO Wrote NWB file: demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\AstroDREADD25_20240702.nwb
+2026-07-08 14:33:42,843 INFO NWB written: demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\AstroDREADD25_20240702.nwb
+2026-07-08 14:33:42,843 WARNING zero_time reference stream 'spikeTimes' first timestamp is 0.0031; expected ~0.

@@ -1,0 +1,13 @@
+2026-07-10 11:54:00,640 INFO Starting Task 5 round-trip validation.
+2026-07-10 11:54:00,641 INFO Dataset directory: C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX
+2026-07-10 11:54:00,641 INFO Conversion table: sur_nwb_conversion_table.csv
+2026-07-10 11:54:00,641 INFO Capturing original snapshot for session: AstroDREADD25_20240702
+2026-07-10 11:54:00,656 INFO Skipping forward conversion and PyNWB validation.
+2026-07-10 11:54:00,656 INFO Skipping reverse conversion.
+2026-07-10 11:54:00,657 INFO Comparing round-trip values for session: AstroDREADD25_20240702
+2026-07-10 11:54:01,003 INFO Note: NumExpr detected 32 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2026-07-10 11:54:01,003 INFO NumExpr defaulting to 8 threads.
+2026-07-10 11:54:01,485 INFO Session report written: C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\roundtrip_validation_report.csv
+2026-07-10 11:54:01,486 INFO Dataset summary written: C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\roundtrip_validation_summary.csv
+2026-07-10 11:54:01,486 INFO Session AstroDREADD25_20240702: 5 mismatch(es), nwb_validation_passed=None
+2026-07-10 11:54:01,486 INFO Task 5 round-trip validation completed.

@@ -2,25 +2,80 @@ check,AstroDREADD25__20240702
 stage1|required|sessionInfo_<datasetID>.csv|institution,found
 stage1|required|sessionInfo_<datasetID>.csv|lab,found
 stage1|required|sessionInfo_<datasetID>.csv|experimenter,found
-stage1|required|sessionInfo_<datasetID>.csv|animal_ID,missing (Required)
-stage1|required|sessionInfo_<datasetID>.csv|session_ID,missing (Required)
-stage1|required|sessionInfo_<datasetID>.csv|session_date,missing (Required)
+stage1|required|sessionInfo_<datasetID>.csv|animal_ID,found
+stage1|required|sessionInfo_<datasetID>.csv|session_ID,found
+stage1|required|sessionInfo_<datasetID>.csv|session_date,found
 stage1|required|sessionInfo_<datasetID>.csv|species,found
 stage1|required|sessionInfo_<datasetID>.csv|sex,found
-stage1|required|sessionInfo_<datasetID>.csv|age__days,missing (Required)
+stage1|required|sessionInfo_<datasetID>.csv|age__days,found
 stage1|required|sessionInfo_<datasetID>.csv|strain,found
-stage1|required|sessionInfo_<datasetID>.csv|zero_time,found
+stage1|optional|sessionInfo_<datasetID>.csv|zero_time,found
 stage1|optional|sessionInfo_<datasetID>.csv|area,found
 stage1|optional|sessionInfo_<datasetID>.csv|condition,found
 stage1|optional|sessionInfo_<datasetID>.csv|related_publication,found
-stage1|required|sessionInfo_<datasetID>.csv|(derived_file_identifier),found
-stage1|optional|sessionInfo_<datasetID>.csv|traces,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv|trialInfo,found
 stage1|optional|sessionInfo_<datasetID>.csv|lfp,found
 stage1|optional|sessionInfo_<datasetID>.csv|spikeTimes,found
 stage1|optional|sessionInfo_<datasetID>.csv|spikeWaves,found
 stage1|optional|sessionInfo_<datasetID>.csv|behEvents,not found (recommended)
-stage1|optional|sessionInfo_<datasetID>.csv|behTSeries,not found (recommended)
-stageRule: preserve name and value into experiment_description block or LabMetaData; document in README.|n/a|sessionInfo_<datasetID>.csv|dataset_specific,found
-stage1|na|sessionInfo_single_session.csv|(all columns above),found
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_acquisition_software,found
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_data_unit_measurement,found
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_filter_cutoff_high__Hz,not found (recommended)
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_filter_cutoff_low__Hz,not found (recommended)
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_filter_type,not found (recommended)
+stage1|required|sessionInfo_<datasetID>.csv|spikeTimes_probe,found
+stage1|optional|sessionInfo_<datasetID>.csv|spikeTimes_quality_metric,not found (recommended)
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_sample_frequency__Hz,found
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_sorting_software,found
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_probe,found
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_filter_type,not found (recommended)
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_filter_cutoff_low__Hz,not found (recommended)
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_filter_cutoff_high__Hz,not found (recommended)
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_data_unit_measurement,found
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_sample_frequency__Hz,found
+stage6|recommended|sessionInfo_<datasetID>.csv|spikeWaves_probe,found
+stage6|recommended|sessionInfo_<datasetID>.csv|spikeWaves_clustering_algorithm,not found (recommended)
+stage6|recommended|sessionInfo_<datasetID>.csv|spikeWaves_sample_frequency__Hz,found
+stage6|recommended|sessionInfo_<datasetID>.csv|spikeWaves_data_unit_measurement,found
+stage1|optional|sessionInfo_<datasetID>.csv|dataset_specific,found
 stage1|optional|experimentDesc.pdf|N/A,not found (recommended)
-stageSame rule as sessionInfo: preserve names on Units DynamicTable.|n/a|spikeTimes_metadata_<datasetID>_<animal_ID>_<session_ID>.csv|dataset_specific,not found (recommended)
+stage2|required|spikeTimes_data.{mat|npz}|NA,found
+stage2|recommended|spikeTimes_schema.json|data_unit_measurement,found
+stage2|recommended|spikeTimes_schema.json|X_dim,not found (recommended)
+stage2|optional|spikeTimes_schema.json|Y_dim,not found (recommended)
+stage2|recommended|spikeTimes_schema.json|X_size,not found (recommended)
+stage2|optional|spikeTimes_schema.json|Y_size,not found (recommended)
+stage2|optional|spikeTimes_schema.json|X_idx,not found (recommended)
+stage2|optional|spikeTimes_schema.json|Y_idx,not found (recommended)
+stage2|recommended|spikeTimes_schema.json|sample_frequency__Hz,found
+stage2|optional|spikeTimes_schema.json|probe,found
+stage2|recommended|spikeTimes_schema.json|acquisition_software,found
+stage2|recommended|spikeTimes_schema.json|sorting_software,found
+stage2|recommended|spikeTimes_schema.json|filter_type,not found (recommended)
+stage2|recommended|spikeTimes_schema.json|filter_cutoff_low__Hz,not found (recommended)
+stage2|recommended|spikeTimes_schema.json|filter_cutoff_high__Hz,not found (recommended)
+stage2|optional|spikeTimes_schema.json|quality_metric,not found (recommended)
+stage2|required|spikeTimes_metadata.csv|unit_ID,found
+stage2|recommended|spikeTimes_metadata.csv|depth__um,not found (recommended)
+stage2|recommended|spikeTimes_metadata.csv|area,found
+stage2|recommended|spikeTimes_metadata.csv|spike_sorting_ID,not found (recommended)
+stage2|optional|spikeTimes_metadata.csv|quality,found
+stage2|optional|spikeTimes_metadata.csv|grid_location,not found (recommended)
+stage2|optional|spikeTimes_metadata.csv|dataset_specific,found
+stage5|required|trialInfo.csv|start_time__s,found
+stage5|required|trialInfo.csv|stop_time__s,found
+stage5|optional|trialInfo.csv|stimulus_onset__s,found
+stage5|optional|trialInfo.csv|stimulus_offset__s,found
+stage5|optional|trialInfo.csv|tone_frequency__Hz,found
+stage5|optional|trialInfo.csv|tone_intensity__dB,found
+stage5|optional|trialInfo.csv|grating_orientation__degrees,not found (recommended)
+stage5|optional|trialInfo.csv|grating_spatial_frequency__cycles_per_degree,not found (recommended)
+stage5|optional|trialInfo.csv|grating_drift_speed__m_per_s,not found (recommended)
+stage5|optional|trialInfo.csv|grating_drift_direction__degrees,not found (recommended)
+stage5|optional|trialInfo.csv|reaction_time__s,found
+stage5|optional|trialInfo.csv|output,found
+stage5|optional|trialInfo.csv|num_licks,not found (recommended)
+stage5|optional|trialInfo.csv|reward,not found (recommended)
+stage5|optional|trialInfo.csv|punish,not found (recommended)
+stage5|optional|trialInfo.csv|correct,found
+stage5|optional|trialInfo.csv|dataset_specific,found

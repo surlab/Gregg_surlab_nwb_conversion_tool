@@ -1,0 +1,18 @@
+2026-07-10 10:47:08,953 INFO Starting Task 3 convert + validate run.
+2026-07-10 10:47:08,953 INFO Dataset directory: C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX
+2026-07-10 10:47:08,953 INFO Conversion table: sur_nwb_conversion_table.csv
+2026-07-10 10:47:08,953 INFO Log file: C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\runlog_convert_and_validate.txt
+2026-07-10 10:47:08,955 INFO Converting session: AstroDREADD25_20240702 -> AstroDREADD25_20240702.nwb
+2026-07-10 10:47:09,114 INFO Note: NumExpr detected 32 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2026-07-10 10:47:09,114 INFO NumExpr defaulting to 8 threads.
+2026-07-10 10:47:09,640 INFO Registered device Neuropixel1.0 (Units linkage deferred)
+2026-07-10 10:47:09,641 INFO Added 309 units from spikeTimes_data_SeqBias_AstroBlock_NPX_examp_AstroDREADD25_20240702.mat
+2026-07-10 10:47:09,646 WARNING Could not coerce trialInfo.correct='early_press' to int; using default.
+2026-07-10 10:47:09,730 INFO Added 239 trials from trialInfo_SeqBias_AstroBlock_NPX_examp_AstroDREADD25_20240702.csv
+2026-07-10 10:47:09,768 WARNING zero_time reference stream 'spikeTimes' first timestamp is 0.0031; expected ~0.
+2026-07-10 10:47:12,579 INFO Wrote NWB file: C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\AstroDREADD25_20240702.nwb
+2026-07-10 10:47:12,579 INFO NWB written: C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\AstroDREADD25_20240702.nwb
+2026-07-10 10:47:12,579 WARNING Could not coerce trialInfo.correct='early_press' to int; using default.
+2026-07-10 10:47:12,579 WARNING zero_time reference stream 'spikeTimes' first timestamp is 0.0031; expected ~0.
+2026-07-10 10:47:12,931 INFO Validation summary written: C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\nwb_validation_summary.csv
+2026-07-10 10:47:12,931 INFO Task 3 convert + validate run completed.

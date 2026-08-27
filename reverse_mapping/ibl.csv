@@ -1,0 +1,3 @@
+fieldname_surlab,priority,nwb_location,nwb_fieldname,linkage_note,notes
+spikeTimes_sorting_software,1,NWBFile/processing,description,processing_module_name_contains_ibl,IBL: sorting pipeline often in a processing module whose name contains ibl.
+spikeTimes_probe,1,NWBFile/devices,Device.name,units_linked_device,IBL ONE: probe device linked from Units when present.

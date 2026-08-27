@@ -1,0 +1,361 @@
+SurLab ← NWB: Task 4 — implementation decisions and answers
+===========================================================
+Consolidated from chat (user responses + Task 4 agent findings).
+Reference for implementing NWB_to_sur.py, round-trip validation (Task 5),
+and cross-agent table/forward-conversion updates.
+
+Also read: for_cursor/task2_implementation_decisions_and_answers.txt (round-trip
+conventions, identifier formula, validation semantics).
+
+-------------------------------------------------------------------------------
+Process note (from project_description.txt.txt update)
+-------------------------------------------------------------------------------
+"Stage" is a development crutch only — not part of the final product design.
+Running code should execute all implemented conversion steps in one integrated
+pipeline on one NWB file. Task 4 still accepts a stage filter during
+development but should converge toward a single entry point with no stage
+artifact in user-facing output.
+
+-------------------------------------------------------------------------------
+Answers to pre-implementation questions (numbered as in Task 4 planning chat)
+-------------------------------------------------------------------------------
+
+1) Table navigation (`nwb_location` + `nwb_fieldname`)
+   - A full structured `nwb_path` column is **not required** for Task 4.
+   - **`nwb_location` + `nwb_fieldname` are now fully deterministic** per
+     Task 1 amendments. Task 4 parses these two columns (same style as
+     `src/table_placement.py::parse_nwb_target` for file/subject targets).
+   - Extend parsing for later-stage containers (`units`, `ophys/...`,
+     `acquisition/...`, `intervals/trials`) as those forward writers land.
+
+2) Stream / `<datatypeID>` discovery for traces and behTSeries
+   **Finding (code + table, March 2026):**
+
+   Forward conversion **does preserve per-stream IDs in NWB keywords today**
+   (Stage 1 only — no traces/behTSeries data writers yet):
+
+   - `src/table_placement.py::build_keyword_list()`:
+     * Fixed modalities: `MODALITY_KEYWORD_MAP` maps sessionInfo column →
+       keyword token (see § Keyword round-trip below).
+     * Per-stream columns: if column name ends with `_traces` or `_behTSeries`
+       and flag is 1, the **full column name** (the `<datatypeID>`) is appended
+       to `NWBFile.keywords` unchanged (e.g. `GCaMP7f_traces`, `pupil_behTSeries`).
+
+   **Not yet preserved anywhere in NWB for data round-trip:**
+   - RoiResponseSeries / acquisition TimeSeries **object names** — no stage 3/4
+     forward writer exists yet. Table row for behTSeries data still has
+     `nwb_fieldname = custom_TimeSeries_name` (ambiguous — Task 1 must fix).
+
+   **Decision (user-approved via Task 4 planning):**
+   - **Canonical NWB series name = SurLab `<datatypeID>`** for both:
+     * `NWBFile/ophys/RoiResponseSeries` (traces streams)
+     * `NWBFile/acquisition` TimeSeries (behTSeries streams)
+   - **Discovery on reverse (Task 4), priority order:**
+     1. Keywords on `NWBFile` matching `*_traces` or `*_behTSeries`
+     2. Named objects under ophys / acquisition whose **name equals** the keyword
+     3. Fallback: scan acquisition/ophys for names ending `_traces` / `_behTSeries`
+   - Task 2 must write series using that name when stage 3/4 forward conversion
+     is implemented.
+
+3) Session clock / `zero_time` (user + Task 1 clarification)
+   - NWB has **no global `zero_time` field**. SurLab times share one session
+     origin (t = 0); the optional `zero_time` sessionInfo column is **provenance
+     only** (which stream was aligned to 0 when building SurLab files).
+   - **Forward (interim):** if `zero_time` column present, write to
+     `NWBFile.notes` as `SurLab zero_time=<datatypeID>` (prefix constant in
+     `src/table_placement.py::ZERO_TIME_NOTES_PREFIX`).
+   - **Reverse (Task 4):** parse notes for that prefix; if absent, optionally
+     infer anchor stream as the one whose first timestamp ≈ 0; if column absent
+     in original SurLab, omit from reverse export (optional field).
+   - Do **not** treat `zero_time` as a special NWB attribute or re-zero any
+     timestamps during conversion.
+
+4) Keywords → sessionInfo boolean columns (inverse of forward)
+   **Finding:** Forward mapping currently lives in hardcoded
+   `src/table_placement.py::MODALITY_KEYWORD_MAP` (drift risk). Per-stream
+   keywords use the full sessionInfo column name (not a separate lookup).
+
+   **Decision (user-approved):** Add machine-readable keyword tokens to
+   `sur_nwb_conversion_table.csv` via a new column **`nwb_keyword`** (see Addendum A).
+   Task 2 and Task 4 load from the table — remove hardcoded dict once populated.
+
+   Interim mapping until column exists:
+
+   | sessionInfo column | nwb_keyword (when flag = 1) |
+   |--------------------|----------------------------|
+   | trialInfo          | trials                     |
+   | lfp                | lfp                        |
+   | spikeTimes         | spike_times                |
+   | spikeWaves         | spike_waveforms            |
+   | behEvents          | behavior_events            |
+   | `<prefix>_traces`  | identity (keyword = column name) |
+   | `<prefix>_behTSeries` | identity (keyword = column name) |
+
+   **Reverse (Task 4):** invert fixed-modality rows via `nwb_keyword`; for
+   `identity` rows, match keywords ending `_traces` / `_behTSeries` to column
+   headers with value `1`. Unmatched keywords → log warning, do not invent columns.
+
+5) Output directory layout (reverse export)
+   - Write all reverse-converted SurLab files under a **subdirectory of the
+     original session folder** (the folder containing the `.nwb` file):
+     **`roundtrip_surformat/`**
+   - Example:
+     `{datasetID}/{animal_ID}_{session_ID}/roundtrip_surformat/spikeTimes_data_<datasetID>_<animal_ID>_<session_ID>.npz`
+   - Dataset-level `sessionInfo_<datasetID>.csv` for round-trip may live at
+     `{datasetID}/roundtrip_surformat/sessionInfo_<datasetID>.csv` OR only
+     session-local copies — Task 4 to emit session-local files first; aggregate
+     dataset CSV alongside them under the same roundtrip tree when multiple
+     sessions exist.
+
+6) Filenames (minimal vs verbose)
+   - **Prefer verbose aliases** when writing round-trip output (embed
+     `_<datasetID>_<animal_ID>_<session_ID>` before extension), in addition to
+     or instead of minimal names — user preference for round-trip folder.
+   - Task 4 default: **verbose primary** inside `roundtrip_surformat/`; readers
+     must still accept minimal names per SurLab spec.
+
+7) Array file format
+   - **Default `.npz`** for Python reverse export (not `.mat`).
+
+8) Array layout / transpose
+   - **Invert** any forward transpose on ingest so round-trip arrays match
+     original SurLab canonical layout (axis 0 = time, axis 1 = ROIs/features/units).
+
+9) Ambiguous table rows
+   - User reports Task 1 amended rows so targets should not be ambiguous.
+   - **Remaining gap flagged for Task 1:** stage 4 behTSeries data row still
+     lists `nwb_fieldname = custom_TimeSeries_name` — replace with `<datatypeID>`
+     (series name) per §2 decision above.
+
+10) Demo / validation baseline
+    - Round-trip comparison (Task 5) uses **spec-compliant** SurLab naming
+      (`animal_ID`, `session_ID`, `session_date`, …), **not** legacy demo
+      headers (`animalID`, `sessID`, …). Demo data fix is separate user task.
+
+11) Independence from Task 2 forward code
+    - Task 4 may read **this file**, **task2_implementation_decisions_and_answers.txt**,
+      **sur_nwb_conversion_table.csv**, and **SurLab data format documentation.md**.
+    - Task 4 must **not import or read `sur_to_nwb.py`**. Shared table utilities
+      (`conversion_table.py`, `session_record.py`) are OK if they contain no
+      forward-only logic.
+    - **`table_placement.py` is reference-only** for keyword/zero_time conventions;
+      reverse logic lives in `NWB_to_sur.py` (or a sibling reverse-only module).
+
+12) Implementation order (user-approved)
+    - Phase 0: table-driven NWB value resolver (deterministic location/fieldname).
+    - Phase 1: complete sessionInfo reverse export → `roundtrip_surformat/`.
+    - Phase 2: spikeTimes (data + metadata + schema).
+    - Validate round-trip on demo before traces/behTSeries/trialInfo.
+    - Phases 3–5 after Task 2 forward writers + table rows are aligned.
+
+-------------------------------------------------------------------------------
+Task 4 implementation checklist (when coding starts)
+-------------------------------------------------------------------------------
+
+[ ] Replace hardcoded `_value_from_nwb_by_fieldname` maps with table-row-driven
+    extraction for sessionInfo.
+[ ] Stop relying on `SurLabSessionInfoExtras` LabMetaData — table now routes
+    `dataset_specific` → `NWBFile.experiment_description` (key=value text).
+    Parse experiment_description on reverse; remove stale extras_json path unless
+    table is updated back to LabMetaData.
+[ ] Parse `SurLab zero_time=` from notes (optional column).
+[ ] Load keyword map from conversion_table `nwb_keyword` column (invert for reverse).
+[ ] Output root: `<session_dir>/roundtrip_surformat/`.
+[ ] Verbose filenames + `.npz` default.
+[ ] spikeTimes: Units table → data/metadata/schema per conversion_table stage 2.
+[ ] Logging to dataset `runlog.txt` (overwrite each run).
+[ ] Emit reverse conversion report CSV (files written, skipped, table gaps).
+
+-------------------------------------------------------------------------------
+Instructions for Task 1 agent (conversion table + documentation)
+-------------------------------------------------------------------------------
+
+1. **Fix stage 4 behTSeries data row:** change
+   `nwb_fieldname` from `custom_TimeSeries_name` to `<datatypeID>` with note:
+   "NWB acquisition TimeSeries.name equals SurLab datatypeID."
+
+2. **Fix stage 3 traces data row (if needed):** confirm
+   `NWBFile/ophys/RoiResponseSeries` + `nwb_fieldname = data` implies series
+   **name** = `<datatypeID>`; add explicit note if not already present.
+
+3. **Add `nwb_keyword` column** to `sur_nwb_conversion_table.csv` (user relayed to Task 1).
+   Populate on all sessionInfo rows where `nwb_fieldname = keywords`:
+
+   | fieldname_surlab           | nwb_keyword        |
+   |----------------------------|--------------------|
+   | trialInfo                  | trials             |
+   | lfp                        | lfp                |
+   | spikeTimes                 | spike_times        |
+   | spikeWaves                 | spike_waveforms    |
+   | behEvents                  | behavior_events    |
+   | (per_stream_traces)        | identity           |
+   | (per_stream_behTSeries)    | identity           |
+
+   **`nwb_keyword` semantics:**
+   - **Literal token** (e.g. `trials`): when sessionInfo flag column is 1, append
+     that string to `NWBFile.keywords` on forward; on reverse, keyword presence
+     sets that column to `1`.
+   - **`identity`**: keyword string equals the sessionInfo **column header**
+     (the full `<datatypeID>`). Applies to columns ending `_traces` or
+     `_behTSeries` with flag 1. No separate lookup table needed.
+
+   Leave `nwb_keyword` empty on rows that do not map to keywords. Document
+   `identity` rule briefly in `notes` on the two informational per-stream rows.
+   Sync `for_cursor/sur_nwb_conversion_table.csv` with repo root.
+
+4. **Document `zero_time` notes format:** `SurLab zero_time=<datatypeID>` on
+   `NWBFile.notes` (already in documentation.md — keep table notes in sync).
+
+5. **Optional:** add one informational row describing NWB series naming convention
+   (name = `<datatypeID>`) for stages 3–4.
+
+6. Sync `for_cursor/sur_nwb_conversion_table.csv` with repo root after all edits.
+
+-------------------------------------------------------------------------------
+Instructions for Task 2 agent (forward conversion)
+-------------------------------------------------------------------------------
+
+1. **Keywords:** refactor `build_keyword_list()` to read `nwb_keyword` from
+   conversion_table rows (replace `MODALITY_KEYWORD_MAP` hardcode). Do not
+   fork the mapping elsewhere — Task 4 inverts the same column.
+
+2. **zero_time:** when sessionInfo has `zero_time`, write
+   `notes = "SurLab zero_time=" + stream_id` (use `format_zero_time_notes()`).
+
+3. **dataset_specific sessionInfo columns:** append to
+   `NWBFile.experiment_description` as `key=value; ...` per current table row
+   (not LabMetaData unless table is changed back).
+
+4. **When implementing stage 3 (traces):**
+   - Create one RoiResponseSeries per stream; **name = `<datatypeID>`** exactly.
+   - Ensure keyword list includes that `<datatypeID>` (already handled if
+     sessionInfo flag column exists).
+
+5. **When implementing stage 4 (behTSeries):**
+   - Create one acquisition TimeSeries per stream; **name = `<datatypeID>`**.
+   - Same keyword requirement as traces.
+
+6. **Do not re-zero timestamps** relative to `zero_time` on forward write — preserve
+   SurLab seconds-as-is into NWB timestamps (session clock alignment is already
+   in the SurLab files).
+
+7. **Transpose:** apply Suite2p-style transpose on SurLab→NWB ingest only;
+   Task 4 will invert on export.
+
+-------------------------------------------------------------------------------
+Cross-reference: what exists in forward code today (March 2026)
+-------------------------------------------------------------------------------
+
+Implemented:
+- Stage 1 sessionInfo → NWBFile/Subject via table_placement.create_nwbfile_from_table
+- Keywords + zero_time notes + experiment_description extras
+- Stage 2 spike times via src/nwb_spike_times.py (partial — verify against table)
+
+Not implemented:
+- Stage 3 traces (RoiResponseSeries writers)
+- Stage 4 behTSeries (acquisition TimeSeries writers)
+- Stage 5 trialInfo
+
+Task 4 partial implementation:
+- src/NWB_to_sur.py — sessionInfo skeleton only; needs refactor per this document.
+
+-------------------------------------------------------------------------------
+Addendum A: `nwb_keyword` column (machine-readable keyword map)
+-------------------------------------------------------------------------------
+User decision: keyword tokens must be machine-readable in `sur_nwb_conversion_table.csv`,
+not prose-only in documentation or a hardcoded Python dict.
+
+**Chosen approach:** extend the existing conversion table with column
+`nwb_keyword` — **not** a separate sentinel CSV file. Keeps one source of truth.
+
+**Why not a separate `modality_keyword_map.csv`?**
+A second file is only warranted if keyword edits must be isolated from the main
+table. Default: one table, one column.
+
+**Column definition**
+- Name: `nwb_keyword`
+- Present on sessionInfo rows where `nwb_location = NWBFile` and
+  `nwb_fieldname = keywords`.
+- Values:
+  * Fixed modality: literal NWB keyword string (e.g. `spike_times`).
+  * Per-stream rule: `identity` (keyword equals sessionInfo column name).
+
+**Forward algorithm (Task 2, after column exists)**
+For each sessionInfo column with value 1 (or truthy):
+1. Find table row for that column (or matching per-stream rule row).
+2. If `nwb_keyword` is a literal token → append to `NWBFile.keywords`.
+3. If `nwb_keyword` is `identity` and column ends with `_traces` or
+   `_behTSeries` → append column name to keywords.
+4. Deduplicate and sort keywords.
+
+**Reverse algorithm (Task 4)**
+For each entry in `NWBFile.keywords`:
+1. If keyword matches a fixed-modality `nwb_keyword` token → set that
+   `fieldname_surlab` column to `1`.
+2. If keyword ends with `_traces` or `_behTSeries` → set column named keyword to `1`.
+3. Else log warning (unknown keyword).
+
+**Migration:** until Task 1 adds the column, code may fall back to
+`MODALITY_KEYWORD_MAP` with a deprecation warning in the log.
+
+-------------------------------------------------------------------------------
+Addendum B: Reverse fallbacks (`nwb_alt_fieldnames` + `reverse_mapping/*.csv`)
+-------------------------------------------------------------------------------
+User decision (Task 1 spec, April 2026): support reverse from non–SurLab-native NWB
+without bloating the primary table.
+
+**Primary table — one column, reverse-only:**
+- `nwb_alt_fieldnames` — semicolon-separated names on **same** `nwb_location` as
+  primary (e.g. `brain_area;location`). Optional `/location|field` escape for rare
+  cross-container renames. Forward ignores.
+
+**Ecosystem packs — separate CSVs:**
+- Directory: `reverse_mapping/` (e.g. `allen.csv`, `ibl.csv`).
+- Join key: **`fieldname_surlab`** (SurLab names are unique enough within the table).
+- Columns: `fieldname_surlab`, `priority`, `nwb_location`, `nwb_fieldname`,
+  `linkage_note`, `notes`.
+- Loaded **only when user specifies** ecosystem (e.g. `--reverse-ecosystem allen`).
+  Default reverse = primary + inline `nwb_alt_fieldnames` only (generic path).
+
+**Read order:** primary (with linkage) → `nwb_alt_fieldnames` → ecosystem CSV(s)
+if requested. Primary wins; warn if primary and fallback both non-empty and differ.
+Always write canonical `fieldname_surlab`. Log source in reverse report.
+
+**Task 4:** implement loader for ecosystem files; extend read helper for alias column.
+
+See `reverse_mapping/README.md`.
+
+-------------------------------------------------------------------------------
+Addendum C: Stream-scalar dual-write + software field parsing (Task 4 fix)
+-------------------------------------------------------------------------------
+Spec: stream scalars are canonical as sessionInfo columns `{datatypeID}_{field}`.
+`{datatypeID}_schema.json` is a legacy optional mirror. Reverse writes both.
+
+**Device.description parsing:**
+- If description matches `key=value; ...`, parse keys:
+  - `acquisition_software` → `spikeTimes_acquisition_software` + schema `acquisition_software`
+  - `sorting_software` → `spikeTimes_sorting_software` + schema `sorting_software`
+- Else if plain software name → acquisition_software only.
+- Prefer processing-module description for sorting_software; fall back to parsed
+  `sorting_software=` from Device.description.
+- Never dump the raw combined Device.description into sessionInfo.
+
+**Modality flags:** absent keyword → write `0` (not blank) for fixed modalities
+(lfp, spikeWaves, behEvents, trialInfo, etc.).
+
+**Absent modalities:** if lfp keyword/modality absent → `lfp=0`, leave `lfp_*`
+sessionInfo columns empty; do not invent `lfp_schema.json` from spikeTimes device.
+
+-------------------------------------------------------------------------------
+Addendum D: trialInfo reverse export (table stage 5)
+-------------------------------------------------------------------------------
+Task 4 exports NWB `intervals/trials` → `trialInfo_<datasetID>_<animal>_<session>.csv`.
+
+- Column map from conversion-table rows with `nwb_location` containing
+  `intervals/trials` (`custom_column_*` → SurLab fieldname).
+- Extra Trials columns not in the table are written as dataset_specific fields.
+- Canonical SurLab headers (`start_time__s`, etc.); Task 5 compares legacy
+  demo headers via `METADATA_COLUMN_ALIASES`.
+- Presence: keyword `trials` and/or non-empty `nwbfile.trials`.
+- Known non-round-trippable demo values after Task 2 coerce: `4kHz`→`4`,
+  `correct`→`1`, string `nan`→empty when NWB stored blank.

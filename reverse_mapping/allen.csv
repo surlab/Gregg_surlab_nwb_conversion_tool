@@ -1,0 +1,4 @@
+fieldname_surlab,priority,nwb_location,nwb_fieldname,linkage_note,notes
+related_publication,1,NWBFile,experiment_description,,DANDI/Allen files sometimes only have citation text in experiment_description.
+spikeTimes_probe,1,NWBFile/general/extracellular_ephys/electrodes,description,allen_ecephys,Allen Visual Coding: probe text may live on electrodes table (SPECULATIVE; validate on real file).
+spikeTimes_sorting_software,1,NWBFile/processing,description,first_processing_module,Allen: sorting info often in first processing module description.

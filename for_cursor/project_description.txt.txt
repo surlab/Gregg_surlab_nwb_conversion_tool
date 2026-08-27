@@ -1,4 +1,10 @@
 NWB packaging TODO
+UPDATE: NOTE WELL: Stage is only a crutch for making the developement modular and helping catch any issues with non-general code. 
+It is a part of our process but shouldn't be part of our implementation
+Running code should run all stages that are implemented with the goal being a final product with no record of the stages that were used during the building process
+We want everything to be smoothly integrated, so on stage two means, including more data types in the pipeline, not creating fully independant code/pipeline module. We work on the same NWB file while its still being created. There is no need to open and close after each stage, and for some datasets intermediate stages of data will be missing. Don't take stage as a designe suggestion
+
+
 - [x] pull in marcos data
 - [X] pull in the documentation in text form
 - [X] write the description
@@ -13,4 +19,7 @@ NWB packaging TODO
     
     Task 3 - (third agent) After each stage run the conversion and then validate the NWB file with official NWB validator. Provide a view access to the developer (me) so I can inspect 
     - Task 4 - 4th agent - reverse conversion from the NWB to the surlab format - again generic as possible, iterating through the NWB file and using the table to guide. 
-    - Task 5 round trip validator compares values between original version and double converted. Write this to compare every file - most will be missing in stage one (expected failures) but we should see the sucesses
+    -     Task 5 round trip validator compares values between original version and double converted. Write this to compare every file - most will be missing in stage one (expected failures) but we should see the sucesses
+
+- [ ] Packaging (parallel, additive — does not block Tasks 1–5): make the repo pip-installable via git URL so other repos can import converter + validator functions. Keep import package name `src` for now (no rename). Full plan, constraints, and checklist: for_cursor/packaging_pip_git_install_plan.txt
+

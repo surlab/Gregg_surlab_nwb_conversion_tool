@@ -1,0 +1,6 @@
+2026-07-10 15:38:52,982 INFO Starting SurLab format validation.
+2026-07-10 15:38:52,982 INFO Dataset directory: C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX
+2026-07-10 15:38:52,982 INFO Conversion table: sur_nwb_conversion_table.csv
+2026-07-10 15:38:52,983 INFO Validating session: AstroDREADD25_20240702
+2026-07-10 15:38:53,076 INFO Session AstroDREADD25__20240702: fails=26 warns=33 report=C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\surlab_format_validation_report.csv
+2026-07-10 15:38:53,077 INFO SurLab format validation completed. fails=26 warns=33

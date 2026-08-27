@@ -1,0 +1,2 @@
+session,session_dir,fail_count,warn_count,pass_count,table_gap_count,report_file,exit_should_fail
+AstroDREADD25__20240702,C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702,26,33,32,2,C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\surlab_format_validation_report.csv,True

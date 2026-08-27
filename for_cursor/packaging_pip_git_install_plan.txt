@@ -1,0 +1,157 @@
+Pip + git URL installability — plan for agents
+==============================================
+Status: approved direction (chat 2026-07-10). Do this as an additive packaging
+pass. Do NOT block or reshape Tasks 1–5 conversion/validation work.
+
+Goal
+----
+Another SurLab repo should be able to install this tool during setup via pip
+from a git URL (or local path / editable install), then import converter and
+validator functions. Prefer pip-in-conda over a full conda-forge package for now.
+
+Consumer install shape (target)
+-------------------------------
+  pip install "git+https://<host>/<org>/Gregg_surlab_nwb_conversion_tool.git"
+
+Or local editable (this repo / sibling checkout):
+  pip install -e .
+
+After install, consuming code should import library functions without adding
+this repo to sys.path and without relying on bats.
+
+-------------------------------------------------------------------------------
+Non-negotiables (avoid conflict with ongoing development)
+-------------------------------------------------------------------------------
+
+1) Do NOT rename the import package `src` yet.
+   - All modules and scripts use `from src.…`. Renaming mid-pipeline fights
+     parallel Task 2–5 agents.
+   - Distribution / PyPI-style name may differ from the import name (e.g.
+     install as `surlab-nwb-conversion` while imports remain `from src.…`).
+   - A clean import rename (`surlab_nwb` or similar) is a later dedicated cleanup
+     when the pipeline is quieter — out of scope for this packaging pass.
+
+2) Do NOT move or split the flat `src/` layout for packaging.
+   - Keep Python in flat `src/`; scripts/bats stay outside `src/` (existing rules).
+
+3) Do NOT change converter/validator function signatures unless required for
+   packaging (prefer wrappers / re-exports).
+
+4) Keep `sur_nwb_conversion_table.csv` at repo root as the editable source of
+   truth for Task 1 and demos. Packaging must ship a copy (or the same file)
+   as package data and still allow an explicit path override (current CLI
+   `--conversion-table` behavior).
+
+5) Do NOT remove repo-root bats or `scripts/` CLIs. They remain the primary
+   demo/dev entry points for this repo. Optional console_scripts are additive.
+
+-------------------------------------------------------------------------------
+Current gaps (why install is incomplete today)
+-------------------------------------------------------------------------------
+
+- `setup.py` is a stub: `name='src'`, no version, no dependencies, no
+  package_data, no entry points.
+- README already mentions `pip install -e .`, but metadata does not match a
+  real installable package.
+- No package `__init__.py` / public re-export surface.
+- Conversion table lives only at repo root; after a git install it will not be
+  next to the consumer’s CWD unless shipped as package data + default resolver.
+- Dependencies live in `environment_*.yml` only; pip install does not pull
+  `pynwb` / `hdmf` / etc. today.
+- Scripts use `sys.path.insert(REPO_ROOT, …)` — fine for demos; library use
+  after install must not require that.
+
+-------------------------------------------------------------------------------
+Work items (packaging agent — additive)
+-------------------------------------------------------------------------------
+
+A) Packaging metadata
+   - Prefer modern `pyproject.toml` (setuptools). Keep or thin `setup.py` only
+     if needed for compatibility; do not leave the stub as the sole definition.
+   - Set a clear distribution name (suggestion: `surlab-nwb-conversion` or
+     `surlab_nwb_conversion_tool` — pick one and document it).
+   - Version (start at 0.1.0 or similar; bump later when publishing).
+   - `install_requires` aligned with `environment_cross_platform.yml` runtime
+     needs: at least pynwb, hdmf, numpy, pandas, scipy (and anything else the
+     library imports at runtime). Dev-only (pytest, jupyter, nwbwidgets) can be
+     optional extras, not hard deps.
+   - Python version floor consistent with the env (currently 3.8 in yml).
+
+B) Make `src` a real installable package without renaming
+   - Ensure package discovery works after `pip install` (add `__init__.py` as
+     needed; use find_packages / package-dir mapping so `import src` works).
+   - Do not require consumers to clone into PYTHONPATH.
+
+C) Ship conversion table as package data
+   - Include `sur_nwb_conversion_table.csv` in the installed package (or a
+     `src`/data location that packaging includes).
+   - Add a small helper (e.g. default table path / loader) so library callers
+     can omit the path and get the bundled table.
+   - CLIs and demos keep defaulting to repo-root CSV when run from this repo;
+     path override always wins.
+   - Task 1 agents continue editing the repo-root CSV; packaging should not
+     invent a second divergent table. Prefer including the root file via
+     package-data config rather than maintaining two copies by hand.
+
+D) Thin public API (re-exports only)
+   - In `src/__init__.py` (or a clearly named module), re-export the functions
+     other repos need. Minimum set:
+       * Forward: `ConversionConfig`, `convert_surlab_session_to_nwb`
+         (from `src.sur_to_nwb`)
+       * NWB validate: `validate_nwb_file`, `validate_nwb_files_in_dataset`
+         (from `src.nwb_validation`)
+       * SurLab-side discovery/validate: main entry points from `src.validator`
+         (whatever is currently used by stage1 / convert scripts)
+       * Bundled table helper from (C)
+   - Optional later (same pattern, do not block A–C): reverse
+     `convert_dataset_nwb_to_surlab`, roundtrip helpers.
+   - Document the import examples in README (short subsection under Install).
+
+E) Optional console entry points
+   - Map existing script behaviors (convert+validate, validate-only, reverse,
+     roundtrip) to `console_scripts` if cheap. Not required for git-URL library
+     use. Do not delete bats.
+
+F) Docs for consumers and agents
+   - README Install: show git URL install + example imports of converter and
+     validator; keep existing conda env + editable flow for this repo.
+   - This file remains the agent source of truth for packaging constraints.
+
+G) Smoke check (required before calling packaging “done”)
+   - Fresh env (or second empty venv): `pip install git+…` or `pip install -e .`
+   - From a directory that is NOT this repo root: import public API, run
+     convert + NWB validate against a small dataset path (demo_data or a copy).
+   - Confirm bundled conversion table resolves without CWD tricks.
+
+-------------------------------------------------------------------------------
+Out of scope for this pass
+-------------------------------------------------------------------------------
+
+- Renaming `src` import package
+- conda-forge / `conda install` recipe (pip inside conda is enough)
+- PyPI public upload / CI release automation (can follow later)
+- Moving tests out of `src/` (nice later; not required for install)
+- Changing Task 1–5 science logic, table schema, or stage semantics
+
+-------------------------------------------------------------------------------
+Coordination with other agents
+-------------------------------------------------------------------------------
+
+- Task 1 (table): keep editing repo-root `sur_nwb_conversion_table.csv`. If
+  packaging includes that file, regenerating/installing picks up the same file;
+  no separate “packaging table.”
+- Task 2–5: continue using `from src.…` and path-based `ConversionConfig` /
+  CLI flags. Packaging must not break those imports.
+- If a packaging change would force import or path churn across many modules,
+  stop and document the conflict here instead of renaming.
+
+-------------------------------------------------------------------------------
+Suggested acceptance checklist
+-------------------------------------------------------------------------------
+
+[ ] pyproject.toml (or equivalent) with name, version, install_requires
+[ ] `pip install -e .` works; `import src` and public re-exports work
+[ ] Conversion table available as package data + default helper; path override works
+[ ] Fresh-env smoke: install without sys.path hacks; convert + validate once
+[ ] README documents git+URL install and example imports
+[ ] No rename of `src`; bats/scripts still work for local demos

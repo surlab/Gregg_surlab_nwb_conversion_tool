@@ -1,0 +1,317 @@
+check,exp101-a1__20260204-gratings
+stage1|required|sessionInfo_<datasetID>.csv|institution,found
+stage1|required|sessionInfo_<datasetID>.csv|lab,found
+stage1|required|sessionInfo_<datasetID>.csv|experimenter,found
+stage1|required|sessionInfo_<datasetID>.csv|animal_ID,found
+stage1|required|sessionInfo_<datasetID>.csv|session_ID,found
+stage1|required|sessionInfo_<datasetID>.csv|session_date,found
+stage1|required|sessionInfo_<datasetID>.csv|species,found
+stage1|required|sessionInfo_<datasetID>.csv|sex,found
+stage1|required|sessionInfo_<datasetID>.csv|age__days,missing (Required)
+stage1|required|sessionInfo_<datasetID>.csv|strain,found
+stage1|optional|sessionInfo_<datasetID>.csv|zero_time,found
+stage1|optional|sessionInfo_<datasetID>.csv|area,found
+stage1|optional|sessionInfo_<datasetID>.csv|condition,found
+stage1|optional|sessionInfo_<datasetID>.csv|related_publication,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv|trialInfo,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv|lfp,found
+stage1|optional|sessionInfo_<datasetID>.csv|spikeTimes,found
+stage1|optional|sessionInfo_<datasetID>.csv|spikeWaves,found
+stage1|optional|sessionInfo_<datasetID>.csv|behEvents,found
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_acquisition_software,not applicable
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_data_unit_measurement,not applicable
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_filter_cutoff_high__Hz,not applicable
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_filter_cutoff_low__Hz,not applicable
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_filter_type,not applicable
+stage1|required|sessionInfo_<datasetID>.csv|spikeTimes_probe,not applicable
+stage1|optional|sessionInfo_<datasetID>.csv|spikeTimes_quality_metric,not applicable
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_sample_frequency__Hz,not applicable
+stage1|recommended|sessionInfo_<datasetID>.csv|spikeTimes_sorting_software,not applicable
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_probe,not applicable
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_filter_type,not applicable
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_filter_cutoff_low__Hz,not applicable
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_filter_cutoff_high__Hz,not applicable
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_data_unit_measurement,not applicable
+stage6|recommended|sessionInfo_<datasetID>.csv|lfp_sample_frequency__Hz,not applicable
+stage6|recommended|sessionInfo_<datasetID>.csv|spikeWaves_probe,not applicable
+stage6|recommended|sessionInfo_<datasetID>.csv|spikeWaves_clustering_algorithm,not applicable
+stage6|recommended|sessionInfo_<datasetID>.csv|spikeWaves_sample_frequency__Hz,not applicable
+stage6|recommended|sessionInfo_<datasetID>.csv|spikeWaves_data_unit_measurement,not applicable
+stage1|recommended|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_data_unit_measurement,found
+stage1|recommended|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_data_unit_measurement,found
+stage1|recommended|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_data_unit_measurement,found
+stage1|recommended|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_data_unit_measurement,found
+stage1|recommended|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_data_unit_measurement,found
+stage1|recommended|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_data_unit_measurement,found
+stage1|recommended|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_data_unit_measurement,found
+stage1|recommended|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_data_unit_measurement,found
+stage1|recommended|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_detection_software,found
+stage1|recommended|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_detection_software,found
+stage1|recommended|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_detection_software,not found (recommended)
+stage1|recommended|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_detection_software,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_fov_depth__um,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_fov_depth__um,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_fov_depth__um,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_fov_depth__um,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_fov_height__pixels,found
+stage1|optional|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_fov_height__pixels,found
+stage1|optional|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_fov_height__pixels,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_fov_height__pixels,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_fov_width__pixels,found
+stage1|optional|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_fov_width__pixels,found
+stage1|optional|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_fov_width__pixels,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_fov_width__pixels,not found (recommended)
+stage1|recommended|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_indicator,found
+stage1|recommended|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_indicator,found
+stage1|recommended|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_indicator,not found (recommended)
+stage1|recommended|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_indicator,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_laser_name,found
+stage1|optional|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_laser_name,found
+stage1|optional|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_laser_name,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_laser_name,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_objectives,found
+stage1|optional|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_objectives,found
+stage1|optional|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_objectives,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_objectives,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_pixel_size__um,found
+stage1|optional|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_pixel_size__um,found
+stage1|optional|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_pixel_size__um,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_pixel_size__um,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_pixel_size__au,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_pixel_size__au,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_pixel_size__au,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_pixel_size__au,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_pixel_size_calibration,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_pixel_size_calibration,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_pixel_size_calibration,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_pixel_size_calibration,not found (recommended)
+stage1|recommended|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_sample_frequency__Hz,found
+stage1|recommended|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_sample_frequency__Hz,found
+stage1|recommended|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_sample_frequency__Hz,found
+stage1|recommended|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_sample_frequency__Hz,found
+stage1|recommended|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_sample_frequency__Hz,found
+stage1|recommended|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_sample_frequency__Hz,found
+stage1|recommended|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_sample_frequency__Hz,found
+stage1|recommended|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_sample_frequency__Hz,found
+stage1|recommended|sessionInfo_<datasetID>.csv [GCaMP8m_traces]|GCaMP8m_traces_wavelength__nm,found
+stage1|recommended|sessionInfo_<datasetID>.csv [Neuropil_traces]|Neuropil_traces_wavelength__nm,found
+stage1|recommended|sessionInfo_<datasetID>.csv [pupil_behTSeries]|pupil_behTSeries_wavelength__nm,not found (recommended)
+stage1|recommended|sessionInfo_<datasetID>.csv [wheel_behTSeries]|wheel_behTSeries_wavelength__nm,not found (recommended)
+stage1|optional|sessionInfo_<datasetID>.csv|dataset_specific,found
+stage1|optional|experimentDesc.pdf|N/A,not found (recommended)
+stage2|required|spikeTimes_data.{mat|npz}|NA,not applicable
+stage2|recommended|spikeTimes_schema.json|data_unit_measurement,not applicable
+stage2|recommended|spikeTimes_schema.json|X_dim,not applicable
+stage2|optional|spikeTimes_schema.json|Y_dim,not applicable
+stage2|recommended|spikeTimes_schema.json|X_size,not applicable
+stage2|optional|spikeTimes_schema.json|Y_size,not applicable
+stage2|optional|spikeTimes_schema.json|X_idx,not applicable
+stage2|optional|spikeTimes_schema.json|Y_idx,not applicable
+stage2|recommended|spikeTimes_schema.json|sample_frequency__Hz,not applicable
+stage2|optional|spikeTimes_schema.json|probe,not applicable
+stage2|recommended|spikeTimes_schema.json|acquisition_software,not applicable
+stage2|recommended|spikeTimes_schema.json|sorting_software,not applicable
+stage2|recommended|spikeTimes_schema.json|filter_type,not applicable
+stage2|recommended|spikeTimes_schema.json|filter_cutoff_low__Hz,not applicable
+stage2|recommended|spikeTimes_schema.json|filter_cutoff_high__Hz,not applicable
+stage2|optional|spikeTimes_schema.json|quality_metric,not applicable
+stage2|required|spikeTimes_metadata.csv|unit_ID,not applicable
+stage2|recommended|spikeTimes_metadata.csv|depth__um,not applicable
+stage2|recommended|spikeTimes_metadata.csv|area,not applicable
+stage2|recommended|spikeTimes_metadata.csv|spike_sorting_ID,not applicable
+stage2|optional|spikeTimes_metadata.csv|quality,not applicable
+stage2|optional|spikeTimes_metadata.csv|grid_location,not applicable
+stage2|optional|spikeTimes_metadata.csv|dataset_specific,not applicable
+stage3|required|GCaMP8m_traces_data.{mat|npz} [GCaMP8m_traces]|NA,found
+stage3|required|Neuropil_traces_data.{mat|npz} [Neuropil_traces]|NA,found
+stage3|required|pupil_behTSeries_data.{mat|npz} [pupil_behTSeries]|NA,found
+stage3|required|wheel_behTSeries_data.{mat|npz} [wheel_behTSeries]|NA,found
+stage3|required|GCaMP8m_traces_timestamps.{mat|npz} [GCaMP8m_traces]|NA,found
+stage3|required|Neuropil_traces_timestamps.{mat|npz} [Neuropil_traces]|NA,found
+stage3|required|pupil_behTSeries_timestamps.{mat|npz} [pupil_behTSeries]|NA,found
+stage3|required|wheel_behTSeries_timestamps.{mat|npz} [wheel_behTSeries]|NA,found
+stage3|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|data_unit_measurement,found
+stage3|recommended|Neuropil_traces_schema.json [Neuropil_traces]|data_unit_measurement,found
+stage3|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|data_unit_measurement,found
+stage3|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|data_unit_measurement,found
+stage3|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|X_dim,found
+stage3|recommended|Neuropil_traces_schema.json [Neuropil_traces]|X_dim,found
+stage3|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|X_dim,found
+stage3|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|X_dim,found
+stage3|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|Y_dim,found
+stage3|recommended|Neuropil_traces_schema.json [Neuropil_traces]|Y_dim,found
+stage3|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|Y_dim,found
+stage3|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|Y_dim,found
+stage3|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|X_size,found
+stage3|recommended|Neuropil_traces_schema.json [Neuropil_traces]|X_size,found
+stage3|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|X_size,found
+stage3|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|X_size,found
+stage3|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|Y_size,found
+stage3|recommended|Neuropil_traces_schema.json [Neuropil_traces]|Y_size,found
+stage3|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|Y_size,found
+stage3|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|Y_size,found
+stage3|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|X_idx,not found (recommended)
+stage3|optional|Neuropil_traces_schema.json [Neuropil_traces]|X_idx,not found (recommended)
+stage3|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|X_idx,not found (recommended)
+stage3|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|X_idx,not found (recommended)
+stage3|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|Y_idx,found
+stage3|optional|Neuropil_traces_schema.json [Neuropil_traces]|Y_idx,found
+stage3|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|Y_idx,not found (recommended)
+stage3|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|Y_idx,not found (recommended)
+stage3|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|sample_frequency__Hz,found
+stage3|recommended|Neuropil_traces_schema.json [Neuropil_traces]|sample_frequency__Hz,found
+stage3|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|sample_frequency__Hz,found
+stage3|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|sample_frequency__Hz,found
+stage3|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|detection_software,found
+stage3|recommended|Neuropil_traces_schema.json [Neuropil_traces]|detection_software,found
+stage3|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|detection_software,not found (recommended)
+stage3|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|detection_software,not found (recommended)
+stage3|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|indicator,found
+stage3|recommended|Neuropil_traces_schema.json [Neuropil_traces]|indicator,found
+stage3|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|indicator,not found (recommended)
+stage3|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|indicator,not found (recommended)
+stage3|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|wavelength__nm,found
+stage3|recommended|Neuropil_traces_schema.json [Neuropil_traces]|wavelength__nm,found
+stage3|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|wavelength__nm,not found (recommended)
+stage3|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|wavelength__nm,not found (recommended)
+stage3|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|pixel_size__um,not found (recommended)
+stage3|optional|Neuropil_traces_schema.json [Neuropil_traces]|pixel_size__um,not found (recommended)
+stage3|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|pixel_size__um,not found (recommended)
+stage3|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|pixel_size__um,not found (recommended)
+stage3|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|pixel_size__au,not found (recommended)
+stage3|optional|Neuropil_traces_schema.json [Neuropil_traces]|pixel_size__au,not found (recommended)
+stage3|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|pixel_size__au,not found (recommended)
+stage3|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|pixel_size__au,not found (recommended)
+stage3|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|pixel_size_calibration,not found (recommended)
+stage3|optional|Neuropil_traces_schema.json [Neuropil_traces]|pixel_size_calibration,not found (recommended)
+stage3|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|pixel_size_calibration,not found (recommended)
+stage3|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|pixel_size_calibration,not found (recommended)
+stage3|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|objectives,found
+stage3|optional|Neuropil_traces_schema.json [Neuropil_traces]|objectives,found
+stage3|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|objectives,not found (recommended)
+stage3|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|objectives,not found (recommended)
+stage3|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|laser_name,found
+stage3|optional|Neuropil_traces_schema.json [Neuropil_traces]|laser_name,found
+stage3|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|laser_name,not found (recommended)
+stage3|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|laser_name,not found (recommended)
+stage3|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|fov_width__pixels,found
+stage3|optional|Neuropil_traces_schema.json [Neuropil_traces]|fov_width__pixels,found
+stage3|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|fov_width__pixels,not found (recommended)
+stage3|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|fov_width__pixels,not found (recommended)
+stage3|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|fov_height__pixels,found
+stage3|optional|Neuropil_traces_schema.json [Neuropil_traces]|fov_height__pixels,found
+stage3|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|fov_height__pixels,not found (recommended)
+stage3|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|fov_height__pixels,not found (recommended)
+stage3|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|fov_depth__um,not found (recommended)
+stage3|optional|Neuropil_traces_schema.json [Neuropil_traces]|fov_depth__um,not found (recommended)
+stage3|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|fov_depth__um,not found (recommended)
+stage3|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|fov_depth__um,not found (recommended)
+stage3|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|dataset_specific,found
+stage3|optional|Neuropil_traces_schema.json [Neuropil_traces]|dataset_specific,found
+stage3|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|dataset_specific,found
+stage3|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|dataset_specific,found
+stage3|required|GCaMP8m_traces_metadata.csv [GCaMP8m_traces]|roi_ID,found
+stage3|required|Neuropil_traces_metadata.csv [Neuropil_traces]|roi_ID,found
+stage3|required|pupil_behTSeries_metadata.csv [pupil_behTSeries]|roi_ID,missing (Required)
+stage3|required|wheel_behTSeries_metadata.csv [wheel_behTSeries]|roi_ID,missing (Required)
+stage3|recommended|GCaMP8m_traces_metadata.csv [GCaMP8m_traces]|roi_x_coordinate,found
+stage3|recommended|Neuropil_traces_metadata.csv [Neuropil_traces]|roi_x_coordinate,found
+stage3|recommended|pupil_behTSeries_metadata.csv [pupil_behTSeries]|roi_x_coordinate,not found (recommended)
+stage3|recommended|wheel_behTSeries_metadata.csv [wheel_behTSeries]|roi_x_coordinate,not found (recommended)
+stage3|recommended|GCaMP8m_traces_metadata.csv [GCaMP8m_traces]|roi_y_coordinate,found
+stage3|recommended|Neuropil_traces_metadata.csv [Neuropil_traces]|roi_y_coordinate,found
+stage3|recommended|pupil_behTSeries_metadata.csv [pupil_behTSeries]|roi_y_coordinate,not found (recommended)
+stage3|recommended|wheel_behTSeries_metadata.csv [wheel_behTSeries]|roi_y_coordinate,not found (recommended)
+stage3|recommended|GCaMP8m_traces_metadata.csv [GCaMP8m_traces]|area,found
+stage3|recommended|Neuropil_traces_metadata.csv [Neuropil_traces]|area,found
+stage3|recommended|pupil_behTSeries_metadata.csv [pupil_behTSeries]|area,not found (recommended)
+stage3|recommended|wheel_behTSeries_metadata.csv [wheel_behTSeries]|area,not found (recommended)
+stage3|recommended|GCaMP8m_traces_metadata.csv [GCaMP8m_traces]|depth__um,not found (recommended)
+stage3|recommended|Neuropil_traces_metadata.csv [Neuropil_traces]|depth__um,not found (recommended)
+stage3|recommended|pupil_behTSeries_metadata.csv [pupil_behTSeries]|depth__um,not found (recommended)
+stage3|recommended|wheel_behTSeries_metadata.csv [wheel_behTSeries]|depth__um,not found (recommended)
+stage3|recommended|GCaMP8m_traces_metadata.csv [GCaMP8m_traces]|roi_center_x,found
+stage3|recommended|Neuropil_traces_metadata.csv [Neuropil_traces]|roi_center_x,found
+stage3|recommended|pupil_behTSeries_metadata.csv [pupil_behTSeries]|roi_center_x,not found (recommended)
+stage3|recommended|wheel_behTSeries_metadata.csv [wheel_behTSeries]|roi_center_x,not found (recommended)
+stage3|recommended|GCaMP8m_traces_metadata.csv [GCaMP8m_traces]|roi_center_y,found
+stage3|recommended|Neuropil_traces_metadata.csv [Neuropil_traces]|roi_center_y,found
+stage3|recommended|pupil_behTSeries_metadata.csv [pupil_behTSeries]|roi_center_y,not found (recommended)
+stage3|recommended|wheel_behTSeries_metadata.csv [wheel_behTSeries]|roi_center_y,not found (recommended)
+stage3|optional|GCaMP8m_traces_metadata.csv [GCaMP8m_traces]|dataset_specific,found
+stage3|optional|Neuropil_traces_metadata.csv [Neuropil_traces]|dataset_specific,found
+stage3|optional|pupil_behTSeries_metadata.csv [pupil_behTSeries]|dataset_specific,found
+stage3|optional|wheel_behTSeries_metadata.csv [wheel_behTSeries]|dataset_specific,found
+stage4|required|GCaMP8m_traces_data.{mat|npz} [GCaMP8m_traces]|NA,found
+stage4|required|Neuropil_traces_data.{mat|npz} [Neuropil_traces]|NA,found
+stage4|required|pupil_behTSeries_data.{mat|npz} [pupil_behTSeries]|NA,found
+stage4|required|wheel_behTSeries_data.{mat|npz} [wheel_behTSeries]|NA,found
+stage4|required|GCaMP8m_traces_timestamps.{mat|npz} [GCaMP8m_traces]|NA,found
+stage4|required|Neuropil_traces_timestamps.{mat|npz} [Neuropil_traces]|NA,found
+stage4|required|pupil_behTSeries_timestamps.{mat|npz} [pupil_behTSeries]|NA,found
+stage4|required|wheel_behTSeries_timestamps.{mat|npz} [wheel_behTSeries]|NA,found
+stage4|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|data_unit_measurement,found
+stage4|recommended|Neuropil_traces_schema.json [Neuropil_traces]|data_unit_measurement,found
+stage4|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|data_unit_measurement,found
+stage4|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|data_unit_measurement,found
+stage4|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|X_dim,found
+stage4|recommended|Neuropil_traces_schema.json [Neuropil_traces]|X_dim,found
+stage4|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|X_dim,found
+stage4|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|X_dim,found
+stage4|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|Y_dim,found
+stage4|recommended|Neuropil_traces_schema.json [Neuropil_traces]|Y_dim,found
+stage4|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|Y_dim,found
+stage4|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|Y_dim,found
+stage4|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|X_size,found
+stage4|recommended|Neuropil_traces_schema.json [Neuropil_traces]|X_size,found
+stage4|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|X_size,found
+stage4|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|X_size,found
+stage4|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|Y_size,found
+stage4|recommended|Neuropil_traces_schema.json [Neuropil_traces]|Y_size,found
+stage4|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|Y_size,found
+stage4|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|Y_size,found
+stage4|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|X_idx,not found (recommended)
+stage4|optional|Neuropil_traces_schema.json [Neuropil_traces]|X_idx,not found (recommended)
+stage4|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|X_idx,not found (recommended)
+stage4|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|X_idx,not found (recommended)
+stage4|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|Y_idx,found
+stage4|optional|Neuropil_traces_schema.json [Neuropil_traces]|Y_idx,found
+stage4|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|Y_idx,not found (recommended)
+stage4|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|Y_idx,not found (recommended)
+stage4|recommended|GCaMP8m_traces_schema.json [GCaMP8m_traces]|sample_frequency__Hz,found
+stage4|recommended|Neuropil_traces_schema.json [Neuropil_traces]|sample_frequency__Hz,found
+stage4|recommended|pupil_behTSeries_schema.json [pupil_behTSeries]|sample_frequency__Hz,found
+stage4|recommended|wheel_behTSeries_schema.json [wheel_behTSeries]|sample_frequency__Hz,found
+stage4|optional|GCaMP8m_traces_schema.json [GCaMP8m_traces]|dataset_specific,found
+stage4|optional|Neuropil_traces_schema.json [Neuropil_traces]|dataset_specific,found
+stage4|optional|pupil_behTSeries_schema.json [pupil_behTSeries]|dataset_specific,found
+stage4|optional|wheel_behTSeries_schema.json [wheel_behTSeries]|dataset_specific,found
+stage4|required|GCaMP8m_traces_metadata.csv [GCaMP8m_traces]|feature_ID,missing (Required)
+stage4|required|Neuropil_traces_metadata.csv [Neuropil_traces]|feature_ID,missing (Required)
+stage4|required|pupil_behTSeries_metadata.csv [pupil_behTSeries]|feature_ID,found
+stage4|required|wheel_behTSeries_metadata.csv [wheel_behTSeries]|feature_ID,found
+stage4|required|GCaMP8m_traces_metadata.csv [GCaMP8m_traces]|feature_label,missing (Required)
+stage4|required|Neuropil_traces_metadata.csv [Neuropil_traces]|feature_label,missing (Required)
+stage4|required|pupil_behTSeries_metadata.csv [pupil_behTSeries]|feature_label,found
+stage4|required|wheel_behTSeries_metadata.csv [wheel_behTSeries]|feature_label,found
+stage4|optional|GCaMP8m_traces_metadata.csv [GCaMP8m_traces]|dataset_specific,found
+stage4|optional|Neuropil_traces_metadata.csv [Neuropil_traces]|dataset_specific,found
+stage4|optional|pupil_behTSeries_metadata.csv [pupil_behTSeries]|dataset_specific,found
+stage4|optional|wheel_behTSeries_metadata.csv [wheel_behTSeries]|dataset_specific,found
+stage5|required|trialInfo.csv|start_time__s,not applicable
+stage5|required|trialInfo.csv|stop_time__s,not applicable
+stage5|optional|trialInfo.csv|stimulus_onset__s,not applicable
+stage5|optional|trialInfo.csv|stimulus_offset__s,not applicable
+stage5|optional|trialInfo.csv|tone_frequency__Hz,not applicable
+stage5|optional|trialInfo.csv|tone_intensity__dB,not applicable
+stage5|optional|trialInfo.csv|grating_orientation__degrees,not applicable
+stage5|optional|trialInfo.csv|grating_spatial_frequency__cycles_per_degree,not applicable
+stage5|optional|trialInfo.csv|grating_drift_speed__m_per_s,not applicable
+stage5|optional|trialInfo.csv|grating_drift_direction__degrees,not applicable
+stage5|optional|trialInfo.csv|reaction_time__s,not applicable
+stage5|optional|trialInfo.csv|output,not applicable
+stage5|optional|trialInfo.csv|num_licks,not applicable
+stage5|optional|trialInfo.csv|reward,not applicable
+stage5|optional|trialInfo.csv|punish,not applicable
+stage5|optional|trialInfo.csv|correct,not applicable
+stage5|optional|trialInfo.csv|dataset_specific,not applicable

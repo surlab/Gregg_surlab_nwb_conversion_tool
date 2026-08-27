@@ -1,0 +1,8 @@
+{
+  "data_unit_measurement": "mixed__see_metadata",
+  "X_dim": "time",
+  "Y_dim": "features",
+  "X_size": 0,
+  "Y_size": 1,
+  "sample_frequency__Hz": 0.0
+}

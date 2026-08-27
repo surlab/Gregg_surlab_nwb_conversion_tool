@@ -199,6 +199,74 @@ values that PyNWB accepted at construction.
 Open follow-ups (lightweight)
 -------------------------------------------------------------------------------
 
-- User: choose identifier strategy §9 (A / B / C).
+- User: choose identifier strategy §9 (A / B / C). **Resolved: Option A.**
 - When Task 1 adds `nwb_path`, fill stage 1 rows using §B patterns and drop
   ambiguous tokens from older columns where possible.
+
+-------------------------------------------------------------------------------
+E) Resolved implementation decisions (July 2026 — user clarifications)
+-------------------------------------------------------------------------------
+These supersede earlier notes in §1 about temporary per-stage file guards.
+
+**Integrated pipeline (not stage modules)**
+- `stage` in sur_nwb_conversion_table.csv is a **development tracking aid only**.
+- Production runs build **one NWBFile in memory** per session and write **once**.
+- Missing modalities are fine; only required checks for **present** datatypes fail.
+- CLI `--stage` / `dev_max_stage` limits which table rows run during incremental
+  dev work. Default (no filter) runs all **implemented** handlers.
+
+**Table as placement spec**
+- Read `nwb_location` + `nwb_fieldname` **literally**; Task 1 owns target cleanup.
+- Every applicable table row must map to NWB or emit a **table gap** warning.
+- No silent drops: if a row is not informational and has a concrete target, the
+  engine places it or reports a gap.
+
+**File-first datatype discovery**
+- **Authoritative:** filenames in the session directory (e.g. `spikeTimes_data*`
+  -> datatype `spikeTimes`; `<datatypeID>_data*` -> that stream).
+- **Secondary:** sessionInfo boolean flags (for validation cross-check).
+- Filename resolver (`src/surlab_paths.py`): minimal name first, then
+  `<stem>*.<ext>` verbose alias glob. Shared by converter and validator.
+
+**Dynamic row applicability**
+- No hardcoded skip list for derived/documentation rows.
+- Informational rows: parenthetical `fieldname_surlab`, `N/A` targets, etc.
+- Applicable rows: source file/field exists on disk -> process; else skip.
+- Required rows for a **present** datatype that fail -> validation error.
+
+**zero_time (session clock)**
+- NWB has no global `zero_time` field. SurLab `zero_time` is the **datatype ID
+  of the reference stream** whose first timestamp is 0; other streams may be
+  positive or negative relative to that origin.
+- Forward conversion writes: `NWBFile.notes = "SurLab zero_time=<datatypeID>"`.
+- If the reference stream's first timestamp is not ~0: **log WARNING only**; do
+  not fail conversion (official PyNWB / DANDI validation is the backstop).
+
+**Legacy sessionInfo headers (input-only hack)**
+- On read, map `animalID`->`animal_ID`, `sessID`->`session_ID`, `sess_date`->
+  `session_date`, `age`->`age__days`, `infoTrials`->`trialInfo`.
+- Validator and table logic use **canonical names only**.
+- **Do not rewrite** on-disk CSV during forward conversion (in-memory only).
+  Canonical on-disk output is Task 4 / round-trip scope.
+
+**Session selection**
+- Single-session runs only for now (demo layout). Multi-session batch selection
+  is a separate future piece.
+
+**Discovery outputs**
+- Validation matrix: checks x sessions, status `found` / `missing (Required)` /
+  `not found (recommended)` / `not applicable`.
+- Discovery ledger: copy of table rows + `applies_to_session`, `discovered`,
+  `source_path` per session (`conversion_table_discovered.csv`).
+
+**Implemented modality handlers (incremental)**
+- sessionInfo metadata (table-driven NWBFile / Subject fields)
+- spikeTimes -> Units table (+ Device from schema; Device registered on NWBFile,
+  electrode/Units linkage deferred until table specifies it for this PyNWB version)
+- trialInfo -> NWB Trials / TimeIntervals (table-driven custom columns; legacy
+  trialInfo headers normalized in memory; dataset_specific extras preserved)
+- traces, behTSeries: table rows exist; handlers TBD (table gaps logged)
+
+**Task 4 coupling**
+- Reverse conversion must eventually read the same placements (notes prefix,
+  Subject fields, Units). Tracked in task4_implementation_decisions_and_answers.txt.

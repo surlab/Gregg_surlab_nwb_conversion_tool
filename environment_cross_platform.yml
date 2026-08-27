@@ -1,4 +1,4 @@
-name: Gregg_surlab_nwb_conversion_tool
+name: surlab_nwb_conversion_tool
 channels:
   - defaults
 dependencies:
@@ -14,4 +14,4 @@ dependencies:
   - pip:
       - pynwb>=2.8
       - hdmf>=3.14
-prefix: C:\Users\Gregg\anaconda3\envs\Gregg_surlab_nwb_conversion_tool
+      - nwbwidgets>=0.11

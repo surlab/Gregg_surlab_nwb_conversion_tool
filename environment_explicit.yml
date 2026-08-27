@@ -1,4 +1,4 @@
-name: Gregg_surlab_nwb_conversion_tool
+name: surlab_nwb_conversion_tool
 channels:
   - defaults
 dependencies:

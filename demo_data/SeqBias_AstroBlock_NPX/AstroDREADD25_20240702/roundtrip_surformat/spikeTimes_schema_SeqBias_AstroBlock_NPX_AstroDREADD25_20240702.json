@@ -1,0 +1,5 @@
+{
+  "acquisition_software": "spikeGLX",
+  "probe": "Neuropixel1.0",
+  "sorting_software": "Kilosort"
+}

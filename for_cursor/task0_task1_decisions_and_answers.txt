@@ -176,7 +176,7 @@ documentation and building the conversion table.
   ROI, and SI unit suffixes after dunder.
 
 -------------------------------------------------------------------------------
-17) conversion_table.csv — requirement_level and requirement_condition
+17) sur_nwb_conversion_table.csv — requirement_level and requirement_condition
 -------------------------------------------------------------------------------
 - **requirement_level** (per row): `required` | `recommended` | `optional` |
   `na` (not applicable / informational).

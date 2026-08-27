@@ -1,95 +1,96 @@
-"""generic description of this module, data_io.py(io).
-generated automatically on project creation from the surlab python-template-repo. 
-please update this docstring as you develop.
-data_io.py should contain functions used for loading or saving data.
+"""Load SurLab array and metadata files.
+
+Demo archives may use legacy metadata/schema keys; a small alias map normalizes
+on read for spikeTimes only. Canonical names in sur_nwb_conversion_table.csv remain the
+spec for new exports.
 """
-from src import config as cfg
-import os
-#import scipy.io as sio
-#import h5py
+
+from __future__ import annotations
+
 import json
-#from datetime import datetime as dt
-################
-# data in
-#################
-def readfile(path):
-    print(f'Reading file at {path}')
-    with open(path, 'r') as f:
-        lines = f.read()
-        print(lines)
-def loadmat(path):
-    try:
-        f = _loadmat(path)
-    except NotImplementedError as E:
-        f = h5py.File(path,'r')
-    if 'soma_cell' in f.keys():
-        return f['soma_cell']
-    elif 'dend_cell' in f.keys():
-        pass
-        #return f['dend_cell']
-    return f
-def _check_keys( dict):
-    """
-    checks if entries in dictionary are mat-objects. If yes
-    todict is called to change them to nested dictionaries
-    """
-    for key in dict:
-        if isinstance(dict[key], sio.matlab.mio5_params.mat_struct):
-            dict[key] = _todict(dict[key])
-    return dict
-def _todict(matobj):
-    """
-    A recursive function which constructs from matobjects nested dictionaries
-    """
-    dict = {}
-    for strg in matobj._fieldnames:
-        elem = matobj.__dict__[strg]
-        if isinstance(elem, sio.matlab.mio5_params.mat_struct):
-            dict[strg] = _todict(elem)
-        else:
-            dict[strg] = elem
-    return dict
-def _loadmat(filename):
-    """
-    this function should be called instead of direct scipy.io .loadmat
-    as it cures the problem of not properly recovering python dictionaries
-    from mat files. It calls the function check keys to cure all entries
-    which are still mat-objects
-    """
-    data = sio.loadmat(filename, struct_as_record=False, squeeze_me=True)
-    return _check_keys(data)
-################
-# data out
-#################
-def save_named_iterable_to_json(**kwargs):
-    for key, value in kwargs.items():
-        timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
-        file_name = key +'_' + timestamp + ".json"
-        summary_path = os.path.join(cfg.collect_summary_at_path, "summary_plots")
-        file_path = os.path.join(summary_path, file_name)
-        if not (os.path.isdir(summary_path)):
-            os.makedirs(summary_path)
-        with open(file_path, "w") as f:
-            json.dump(value, f, indent=4)
-def save_csv(df, name_keywords=''):
-    dfname = f'{name_keywords}.csv'
-    df_path = os.path.join(cfg.collect_summary_at_path, dfname)
-    print(f'Saving dataframe to {df_path}')
-    df.to_csv(df_path)
-    
-def save_plot(fig, current_data_dir):
-    # save it local with the other data
-    file_name = "annotated_dendrite.svg"
-    file_dir = os.path.join(current_data_dir, cfg.subfolder_name)
-    if not (os.path.isdir(file_dir)):
-        os.mkdir(file_dir)
-    file_path = os.path.join(current_data_dir, cfg.subfolder_name, file_name)
-    fig.savefig(file_path)
-    if cfg.collect_summary_at_path:
-        cell_dir, FOV_name = os.path.split(current_data_dir)
-        _, cell_name = os.path.split(cell_dir)
-        file_name = cell_name + "_" + FOV_name + "_annotated_dendrite.svg"
-        if not (os.path.isdir(cfg.collect_summary_at_path)):
-            os.mkdir(cfg.collect_summary_at_path)
-        file_path = os.path.join(cfg.collect_summary_at_path, file_name)
-        fig.savefig(file_path)
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import numpy as np
+
+
+def load_json(path: Path) -> Dict[str, object]:
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def load_numeric_array(path: Path) -> np.ndarray:
+    if path.suffix.lower() == ".npz":
+        archive = np.load(path, allow_pickle=True)
+        if len(archive.files) == 1:
+            return np.asarray(archive[archive.files[0]])
+        for preferred_key in ("data", "timestamps", "spikeTimes"):
+            if preferred_key in archive.files:
+                return np.asarray(archive[preferred_key])
+        return np.asarray(archive[archive.files[0]])
+
+    import scipy.io as sio
+
+    mat = sio.loadmat(path, squeeze_me=True, struct_as_record=False)
+    for key, value in mat.items():
+        if not key.startswith("_"):
+            return np.asarray(value)
+    raise ValueError(f"No array variable found in {path}")
+
+
+def squeeze_object_array(array: np.ndarray) -> List[np.ndarray]:
+    """Convert MATLAB cell/object layout to a list of 1D float arrays."""
+    flat = np.asarray(array).ravel()
+    series: List[np.ndarray] = []
+    for item in flat:
+        values = np.asarray(item, dtype=float).ravel()
+        series.append(values)
+    return series
+
+
+def load_spike_times_by_unit(path: Path) -> List[np.ndarray]:
+    raw = load_numeric_array(path)
+    if raw.dtype == object or raw.ndim >= 1:
+        return squeeze_object_array(raw)
+    return [np.asarray(raw, dtype=float).ravel()]
+
+
+def normalize_schema_keys(schema: Dict[str, object]) -> Dict[str, object]:
+    """Map common legacy schema keys to canonical table field names."""
+    aliases = {
+        "sampFreq": "sample_frequency__Hz",
+        "data_unit_meas": "data_unit_measurement",
+    }
+    normalized = dict(schema)
+    for legacy_key, canonical_key in aliases.items():
+        if canonical_key not in normalized and legacy_key in normalized:
+            normalized[canonical_key] = normalized[legacy_key]
+    return normalized
+
+
+def normalize_metadata_row(row: Dict[str, str]) -> Dict[str, str]:
+    aliases = {
+        "spikesorting_ID": "spike_sorting_ID",
+        "depth": "depth__um",
+    }
+    normalized = dict(row)
+    for legacy_key, canonical_key in aliases.items():
+        if canonical_key not in normalized and legacy_key in normalized:
+            normalized[canonical_key] = normalized[legacy_key]
+    return normalized
+
+
+def save_spike_times_npz(path: Path, spike_series: List[np.ndarray], array_key: str = "spikeTimes") -> None:
+    """Write SurLab spikeTimes layout: (1, n_units) object array of 1D float arrays."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    unit_count = len(spike_series)
+    container = np.empty((1, unit_count), dtype=object)
+    for index, values in enumerate(spike_series):
+        container[0, index] = np.asarray(values, dtype=float).ravel()
+    np.savez(path, **{array_key: container})
+
+
+def save_json_file(path: Path, payload: Dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)

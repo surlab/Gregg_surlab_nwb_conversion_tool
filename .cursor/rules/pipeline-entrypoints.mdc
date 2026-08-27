@@ -18,5 +18,5 @@ alwaysApply: true
 
 ```bat
 call conda activate surlab_nwb_conversion_tool
-python scripts/run_stage1_conversion.py
+python scripts/run_convert_and_validate.py --dataset-dir demo_data/SeqBias_AstroBlock_NPX
 ```

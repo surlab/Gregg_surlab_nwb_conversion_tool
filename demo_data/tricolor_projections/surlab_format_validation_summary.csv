@@ -1,0 +1,2 @@
+session,session_dir,fail_count,warn_count,pass_count,table_gap_count,report_file,exit_should_fail
+exp101-a1__20260204-gratings,C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\tricolor_projections\exp101-a1_20260204-gratings,7,96,90,4,C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\tricolor_projections\exp101-a1_20260204-gratings\surlab_format_validation_report.csv,True

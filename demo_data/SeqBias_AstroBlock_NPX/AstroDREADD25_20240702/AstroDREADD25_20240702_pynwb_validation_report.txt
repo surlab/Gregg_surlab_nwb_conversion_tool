@@ -1,0 +1,8 @@
+PyNWB validation report
+generated_utc: 2026-07-10T14:47:12.763115+00:00
+nwb_file: C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\AstroDREADD25_20240702.nwb
+passed: True
+failed_issue_count: 0
+
+issues:
+- none

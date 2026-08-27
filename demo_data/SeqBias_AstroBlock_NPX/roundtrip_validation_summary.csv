@@ -1,0 +1,2 @@
+session,session_key,forward_ok,reverse_ok,n_match,n_mismatch,n_skipped_original_missing,n_skipped_roundtrip_missing,n_skipped_non_comparable,nwb_validation_passed,nwb_validation_note,report_file
+AstroDREADD25_20240702,AstroDREADD25__20240702,True,True,57,5,10,5,6,,session not listed,C:\Users\User\MIT Dropbox\Greggory Heller\gregg_code\Gregg_surlab_nwb_conversion_tool\demo_data\SeqBias_AstroBlock_NPX\AstroDREADD25_20240702\roundtrip_validation_report.csv

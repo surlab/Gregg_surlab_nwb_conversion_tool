@@ -10,7 +10,7 @@ call conda activate surlab_nwb_conversion_tool
 call conda info --envs
 
 set DATASET_DIR=demo_data\SeqBias_AstroBlock_NPX
-set CONVERSION_TABLE=conversion_table.csv
+set CONVERSION_TABLE=sur_nwb_conversion_table.csv
 set OUTPUT_MATRIX=%DATASET_DIR%\session_validation_matrix.csv
 set LOG_FILE=Runlog_stage1_conversion.log
 

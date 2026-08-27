@@ -1,0 +1,15 @@
+{
+  "datasetID": "tricolor_projections",
+  "institution": "MIT",
+  "lab": "Mriganka Sur",
+  "experimenter": "Sofie Ahrlund Richter",
+  "species": "Mus musculus",
+  "strain": "flex-GCaMP8m x CamkII-Cre",
+  "sex": "U",
+  "age__days": "",
+  "condition": "passive visual grating",
+  "area": "VISp",
+  "related_publication": "",
+  "fov_depth__um": null,
+  "neuropil_subtraction_in_export": false
+}

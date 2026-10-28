@@ -4,6 +4,11 @@ Uses the same filename resolver and file-first datatype discovery as forward
 conversion. SessionInfo checks use canonical field names from the in-memory
 session record (legacy headers are normalized on load for presence checks, but
 on-disk legacy headers are reported as naming violations).
+
+For ``data_array`` / ``timestamps_array`` table rows, loads ``.mat``/``.npz``
+files when present and checks float64-compatible dtypes, 1-D timestamps,
+axis-0 length vs paired timestamps, and ``X_size``/``Y_size``/index lengths
+from the datatype schema when those keys exist.
 """
 
 from __future__ import annotations
@@ -17,7 +22,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
+import numpy as np
+
 from src.conversion_table import (
+    condition_datatype_id,
     expand_rows_for_datatypes,
     filter_dev_stage,
     is_informational_row,
@@ -25,7 +33,13 @@ from src.conversion_table import (
     read_conversion_table,
     row_applies_to_session,
 )
-from src.data_io import load_json, normalize_metadata_row, normalize_schema_keys
+from src.data_io import (
+    load_json,
+    load_numeric_array,
+    load_spike_times_by_unit,
+    normalize_metadata_row,
+    normalize_schema_keys,
+)
 from src.session_record import (
     LEGACY_TO_CANONICAL_FIELD_MAP,
     field_non_empty,
@@ -97,6 +111,7 @@ TRIALINFO_LEGACY_HEADERS = {
     "tone_freq": "tone_frequency__Hz",
     "tone_intensity": "tone_intensity__dB",
     "reaction_time": "reaction_time__s",
+    "output": "action",
 }
 
 # nwb_type values that are not value-checked (informational / file-level).
@@ -118,6 +133,12 @@ def _as_sequence(value: object) -> Optional[List[object]]:
             return [part.strip().strip("'\"") for part in inner.split(",")]
         if "," in text:
             return [part.strip() for part in text.split(",") if part.strip()]
+        parts = [part for part in re.split(r"[\s;]+", text) if part.strip()]
+        if len(parts) > 1:
+            return parts
+        number, remainder, _ = _split_number_and_suffix(text)
+        if number is not None and remainder == "":
+            return [number]
         return None
     try:
         import numpy as np
@@ -214,6 +235,10 @@ def _is_recommended(row: Dict[str, str]) -> bool:
     return _get_requirement_level(row) == "recommended"
 
 
+def _is_not_recommended(row: Dict[str, str]) -> bool:
+    return _get_requirement_level(row) == "not-recommended"
+
+
 def _check_name_for_row(row: Dict[str, str]) -> str:
     level = _get_requirement_level(row)
     stage = str(row.get("stage", "")).strip() or "?"
@@ -292,10 +317,35 @@ def assess_value_type(
     if type_key in {"str", "str_or_array_of_str", "array_of_str"}:
         if field_name == "sex" and text.upper() not in {"M", "F", "O", "U"}:
             return STATUS_FAIL, f"sex must be M/F/O/U, got {text!r}", ""
+        lowered = text.lower()
+        if field_name == "correct":
+            if lowered in {"", "nan", "na", "n/a", "none", "null"}:
+                return STATUS_PASS, "", ""
+            if lowered == "early_press":
+                return (
+                    STATUS_FAIL,
+                    "early_press must not appear in correct; use action=early_press and leave correct empty",
+                    "",
+                )
+            if lowered in {"correct", "incorrect", "error", "0", "1"}:
+                return STATUS_PASS, "", ""
+            return STATUS_FAIL, f"correct must be correct|incorrect or missing; got {text!r}", ""
+        if field_name == "trial_type":
+            if lowered in {"", "nan", "na", "n/a", "none", "null"}:
+                return STATUS_PASS, "", ""
+            if lowered == "early_press":
+                return (
+                    STATUS_FAIL,
+                    "early_press must not appear in trial_type; use action=early_press and trial_type=aborted",
+                    "",
+                )
+            if lowered in {"hit", "miss", "fa", "cr", "aborted"}:
+                return STATUS_PASS, "", ""
+            return STATUS_FAIL, f"trial_type must be hit|miss|fa|cr|aborted or missing; got {text!r}", ""
         if "yyyy-mm-dd" in units_lower or field_name == "session_date":
             return _assess_date_value(text)
         if "boolean 0/1" in units_lower or "binary" in units_lower:
-            if text.lower() not in {"0", "1", "true", "false", "yes", "no"}:
+            if lowered not in {"0", "1", "true", "false", "yes", "no"}:
                 return STATUS_FAIL, f"expected 0/1 boolean-like, got {text!r}", ""
         return STATUS_PASS, "", ""
 
@@ -308,17 +358,6 @@ def assess_value_type(
         return STATUS_FAIL, f"expected bool 0/1, got {text!r}", ""
 
     if type_key in {"int", "integer"}:
-        if field_name == "correct":
-            if text.lower() in {"0", "1", "true", "false", "yes", "no", "correct", "error", "incorrect"}:
-                # Spec: binary 0/1 when present; string labels are type violations.
-                if text.lower() in {"0", "1"}:
-                    return STATUS_PASS, "", ""
-                return (
-                    STATUS_FAIL,
-                    f"correct must be binary 0/1 per table; got {text!r}",
-                    "allowed_values for correct not enumerated beyond binary 0/1",
-                )
-            return STATUS_FAIL, f"correct must be binary 0/1; got {text!r}", ""
         number, remainder, _ = _split_number_and_suffix(text)
         if number is None:
             return STATUS_FAIL, f"expected int, got {text!r}", ""
@@ -837,6 +876,8 @@ def _issues_value_types_for_row(
         return issues
     if field_name.startswith("("):
         return issues
+    if _is_not_recommended(row):
+        return issues
 
     row_type = str(row.get("row_type", "")).strip()
     if row_type in {"data_array", "timestamps_array"}:
@@ -1052,6 +1093,126 @@ def _issues_flag_file_consistency(
     return issues
 
 
+def _issues_not_recommended_columns_present(
+    expanded_rows: Sequence[Dict[str, str]],
+    dataset_dir: Path,
+    session_dir: Path,
+    session_record: Dict[str, str],
+    discovered_datatypes: Set[str],
+) -> List[ConventionIssue]:
+    """Warn when a not-recommended table column is present on disk."""
+    issues: List[ConventionIssue] = []
+    for row in expanded_rows:
+        if not _is_not_recommended(row):
+            continue
+        if not row_applies_to_session(
+            row,
+            discovered_datatypes,
+            datatype_id=str(row.get("datatype_id", "")).strip() or None,
+        ):
+            continue
+        field_name = str(row.get("fieldname_surlab", "")).strip()
+        if not field_name:
+            continue
+        resolved = resolve_row_source_file(
+            row,
+            dataset_dir,
+            session_dir,
+            session_record,
+            datatype_id=str(row.get("datatype_id", "")).strip() or None,
+        )
+        if resolved is None:
+            continue
+        file_rows = read_csv_rows(resolved.path)
+        if not file_rows:
+            continue
+        if field_name not in file_rows[0]:
+            continue
+        rationale = str(row.get("mapping_rationale", "")).strip()
+        notes = str(row.get("notes", "")).strip()
+        detail = rationale or notes or f"column {field_name!r} is not-recommended for this file"
+        issues.append(
+            ConventionIssue(
+                check=f"presence|not-recommended|{_check_name_for_row(row)}",
+                severity=SEVERITY_WARN,
+                status=STATUS_WARN,
+                detail=detail,
+                path=str(resolved.path),
+                fieldname=field_name,
+                expected="absent (not-recommended)",
+                observed="column present",
+            )
+        )
+    return issues
+
+
+def _issues_spikewaves_area_vs_spiketimes(
+    session_dir: Path,
+    discovered_datatypes: Set[str],
+) -> List[ConventionIssue]:
+    """Warn on spikeWaves area column; fail when unit area disagrees with spikeTimes."""
+    if "spikeWaves" not in discovered_datatypes:
+        return []
+
+    issues: List[ConventionIssue] = []
+    waves_paths = [
+        path
+        for path in sorted(session_dir.glob("spikeWaves_metadata*.csv"))
+        if not _is_non_format_path(path)
+    ]
+    if not waves_paths:
+        return issues
+
+    from src.data_io import normalize_metadata_row
+
+    times_path = next(
+        (path for path in sorted(session_dir.glob("spikeTimes_metadata*.csv")) if not _is_non_format_path(path)),
+        None,
+    )
+    times_area_by_unit: Dict[str, str] = {}
+    if times_path is not None:
+        for index, record in enumerate(read_csv_rows(times_path)):
+            normalized = normalize_metadata_row(record)
+            unit_id = _normalize_compare_text(normalized.get("unit_ID", record.get("unit_ID", "")))
+            area = _normalize_compare_text(normalized.get("area", record.get("area", "")))
+            if unit_id and area:
+                times_area_by_unit[unit_id] = area
+
+    for waves_path in waves_paths:
+        wave_rows = read_csv_rows(waves_path)
+        if not wave_rows:
+            continue
+        if "area" not in wave_rows[0]:
+            continue
+
+        for index, record in enumerate(wave_rows):
+            normalized = normalize_metadata_row(record)
+            unit_id = _normalize_compare_text(normalized.get("unit_ID", record.get("unit_ID", "")))
+            wave_area = _normalize_compare_text(normalized.get("area", record.get("area", "")))
+            if not unit_id or not wave_area:
+                continue
+            times_area = times_area_by_unit.get(unit_id, "")
+            if not times_area:
+                continue
+            if wave_area != times_area:
+                issues.append(
+                    ConventionIssue(
+                        check=f"consistency|spikeWaves_area_vs_spikeTimes|unit_ID={unit_id}",
+                        severity=SEVERITY_FAIL,
+                        status=STATUS_FAIL,
+                        detail=(
+                            f"unit_ID {unit_id}: spikeWaves_metadata area={wave_area!r} "
+                            f"!= spikeTimes_metadata area={times_area!r}"
+                        ),
+                        path=f"{waves_path}#row{index}",
+                        fieldname="area",
+                        expected=times_area,
+                        observed=wave_area,
+                    )
+                )
+    return issues
+
+
 def _issues_unexpected_files(session_dir: Path, discovered_datatypes: Set[str]) -> List[ConventionIssue]:
     """Flag files that look like SurLab data but do not match known datatype stems."""
     issues: List[ConventionIssue] = []
@@ -1098,6 +1259,418 @@ def _issues_unexpected_files(session_dir: Path, discovered_datatypes: Set[str]) 
                 )
             )
     return issues
+
+
+def _schema_int_value(schema: Dict[str, object], key: str) -> Optional[int]:
+    raw = schema.get(key)
+    if raw is None or _is_missing_token(raw):
+        return None
+    try:
+        return int(float(str(raw).strip()))
+    except (TypeError, ValueError):
+        return None
+
+
+def _array_row_for_datatype(
+    expanded_rows: Sequence[Dict[str, str]],
+    datatype_id: str,
+    row_type: str,
+) -> Optional[Dict[str, str]]:
+    for row in expanded_rows:
+        if str(row.get("row_type", "")).strip() != row_type:
+            continue
+        if is_informational_row(row):
+            continue
+        bound_id = str(row.get("datatype_id", "")).strip()
+        if bound_id and bound_id != datatype_id:
+            continue
+        if bound_id == datatype_id:
+            return row
+        condition_id = condition_datatype_id(str(row.get("requirement_condition", "")).strip())
+        if condition_id == datatype_id:
+            return row
+        pattern = str(row.get("surlab_filename", "")).strip()
+        if pattern.startswith(f"{datatype_id}_") or pattern.startswith(f"{datatype_id}."):
+            return row
+    return None
+
+
+def _datatype_uses_object_array_layout(datatype_id: str, data_row: Optional[Dict[str, str]]) -> bool:
+    if datatype_id == "spikeTimes":
+        return True
+    if datatype_id.endswith("_behEvents"):
+        return True
+    if data_row is not None:
+        nwb_location = str(data_row.get("nwb_location", "")).strip()
+        nwb_fieldname = str(data_row.get("nwb_fieldname", "")).strip()
+        if nwb_location == "NWBFile/units" and nwb_fieldname == "spike_times":
+            return True
+        if nwb_fieldname == "timestamp" and "behEvents" in nwb_location:
+            return True
+    return False
+
+
+def _numeric_array_is_float64_compatible(array: object) -> Tuple[bool, str]:
+    values = np.asarray(array)
+    if values.dtype == object:
+        return False, "object dtype (expected numeric float64-compatible array)"
+    if not np.issubdtype(values.dtype, np.number):
+        return False, f"dtype {values.dtype} is not numeric"
+    try:
+        values.astype(float)
+    except (TypeError, ValueError):
+        return False, "values not castable to float"
+    return True, ""
+
+
+def _object_array_is_float64_compatible(array: object) -> Tuple[bool, str]:
+    flat = np.asarray(array).ravel()
+    for index, item in enumerate(flat):
+        try:
+            values = np.asarray(item, dtype=float).ravel()
+        except (TypeError, ValueError):
+            return False, f"object slot {index} not float-compatible"
+        if values.size == 0:
+            continue
+        if not np.issubdtype(values.dtype, np.number):
+            return False, f"object slot {index} has non-numeric dtype {values.dtype}"
+    return True, ""
+
+
+def _issues_schema_layout_indices(
+    schema_path: Path,
+    schema: Dict[str, object],
+) -> List[ConventionIssue]:
+    issues: List[ConventionIssue] = []
+    x_size = _schema_int_value(schema, "X_size")
+    y_size = _schema_int_value(schema, "Y_size")
+    for key, expected_size in (("X_idx", x_size), ("Y_idx", y_size)):
+        if expected_size is None:
+            continue
+        raw = schema.get(key)
+        if raw is None or _is_missing_token(raw):
+            continue
+        sequence = _as_sequence(raw)
+        if sequence is None:
+            continue
+        if len(sequence) != expected_size:
+            issues.append(
+                ConventionIssue(
+                    check=f"layout|schema|len({key})",
+                    severity=SEVERITY_FAIL,
+                    status=STATUS_FAIL,
+                    detail=f"len({key})={len(sequence)} != {key.replace('_idx', '_size')}={expected_size}",
+                    path=str(schema_path),
+                    fieldname=key,
+                    expected=str(expected_size),
+                    observed=str(len(sequence)),
+                )
+            )
+    return issues
+
+
+def _metadata_row_count(session_dir: Path, datatype_id: str) -> Optional[int]:
+    matches = sorted(session_dir.glob(f"{datatype_id}_metadata*.csv"))
+    for path in matches:
+        if _is_non_format_path(path):
+            continue
+        rows = read_csv_rows(path)
+        return len(rows)
+    return None
+
+
+def _issues_array_files_for_datatype(
+    datatype_id: str,
+    expanded_rows: Sequence[Dict[str, str]],
+    dataset_dir: Path,
+    session_dir: Path,
+    session_record: Dict[str, str],
+    discovered_datatypes: Set[str],
+) -> List[ConventionIssue]:
+    """Load .mat/.npz arrays and check dtype/shape against table nwb_type and schema."""
+    issues: List[ConventionIssue] = []
+    data_row = _array_row_for_datatype(expanded_rows, datatype_id, "data_array")
+    timestamps_row = _array_row_for_datatype(expanded_rows, datatype_id, "timestamps_array")
+    if data_row is None and timestamps_row is None:
+        return issues
+
+    schema_path = _find_schema_file(session_dir, datatype_id)
+    schema: Dict[str, object] = {}
+    if schema_path is not None:
+        schema = normalize_schema_keys(load_json(schema_path))
+        issues.extend(_issues_schema_layout_indices(schema_path, schema))
+
+    x_size = _schema_int_value(schema, "X_size")
+    y_size = _schema_int_value(schema, "Y_size")
+    object_layout = _datatype_uses_object_array_layout(datatype_id, data_row)
+
+    data_path: Optional[Path] = None
+    if data_row is not None and row_applies_to_session(data_row, discovered_datatypes, datatype_id=datatype_id):
+        resolved = resolve_row_source_file(
+            data_row,
+            dataset_dir,
+            session_dir,
+            session_record,
+            datatype_id=datatype_id,
+        )
+        if resolved is not None:
+            data_path = resolved.path
+
+    timestamps_path: Optional[Path] = None
+    if timestamps_row is not None and row_applies_to_session(
+        timestamps_row, discovered_datatypes, datatype_id=datatype_id
+    ):
+        resolved = resolve_row_source_file(
+            timestamps_row,
+            dataset_dir,
+            session_dir,
+            session_record,
+            datatype_id=datatype_id,
+        )
+        if resolved is not None:
+            timestamps_path = resolved.path
+
+    loaded_data = None
+    data_time_length: Optional[int] = None
+    data_axis1_length: Optional[int] = None
+
+    if data_path is not None:
+        try:
+            if object_layout:
+                unit_series = load_spike_times_by_unit(data_path) if datatype_id == "spikeTimes" else None
+                if unit_series is not None:
+                    container = np.empty((1, len(unit_series)), dtype=object)
+                    for index, values in enumerate(unit_series):
+                        container[0, index] = np.asarray(values, dtype=float).ravel()
+                    loaded_data = container
+                    data_axis1_length = len(unit_series)
+                    ok, detail = _object_array_is_float64_compatible(loaded_data)
+                else:
+                    loaded_data = load_numeric_array(data_path)
+                    ok, detail = _object_array_is_float64_compatible(loaded_data)
+                    data_axis1_length = len(np.asarray(loaded_data).ravel())
+            else:
+                loaded_data = load_numeric_array(data_path)
+                ok, detail = _numeric_array_is_float64_compatible(loaded_data)
+                if loaded_data.ndim == 1:
+                    data_time_length = int(loaded_data.shape[0])
+                    data_axis1_length = 1
+                elif loaded_data.ndim >= 2:
+                    data_time_length = int(loaded_data.shape[0])
+                    data_axis1_length = int(loaded_data.shape[1])
+        except Exception as exc:
+            ok, detail = False, f"not loadable: {exc}"
+            loaded_data = None
+
+        if ok:
+            issues.append(
+                ConventionIssue(
+                    check=f"array|load|{datatype_id}|data",
+                    severity=SEVERITY_INFO,
+                    status=STATUS_PASS,
+                    detail="loadable; float64-compatible",
+                    path=str(data_path),
+                    expected=str(data_row.get("nwb_type", "")) if data_row else "",
+                    observed=str(getattr(loaded_data, "shape", "")),
+                )
+            )
+        else:
+            issues.append(
+                ConventionIssue(
+                    check=f"array|load|{datatype_id}|data",
+                    severity=SEVERITY_FAIL,
+                    status=STATUS_FAIL,
+                    detail=detail,
+                    path=str(data_path),
+                    expected=str(data_row.get("nwb_type", "")) if data_row else "array_of_float64",
+                    observed="load failed" if loaded_data is None else str(getattr(loaded_data, "dtype", "")),
+                )
+            )
+
+        if ok and loaded_data is not None:
+            if object_layout and x_size is not None and data_axis1_length is not None:
+                if data_axis1_length != x_size:
+                    issues.append(
+                        ConventionIssue(
+                            check=f"array|shape|{datatype_id}|object_slots",
+                            severity=SEVERITY_FAIL,
+                            status=STATUS_FAIL,
+                            detail=f"object-array slot count {data_axis1_length} != schema X_size={x_size}",
+                            path=str(data_path),
+                            fieldname="X_size",
+                            expected=str(x_size),
+                            observed=str(data_axis1_length),
+                        )
+                    )
+            elif not object_layout and loaded_data.ndim >= 1:
+                if x_size is not None and data_time_length is not None:
+                    if data_time_length != x_size:
+                        transposed = (
+                            y_size is not None
+                            and data_axis1_length is not None
+                            and data_time_length == y_size
+                            and data_axis1_length == x_size
+                        )
+                        detail = (
+                            f"data axis-0 length {data_time_length} != schema X_size={x_size}"
+                            + (" (possible transpose: axis 0=time)" if transposed else "")
+                        )
+                        issues.append(
+                            ConventionIssue(
+                                check=f"array|shape|{datatype_id}|X_size",
+                                severity=SEVERITY_FAIL,
+                                status=STATUS_FAIL,
+                                detail=detail,
+                                path=str(data_path),
+                                fieldname="X_size",
+                                expected=str(x_size),
+                                observed=str(data_time_length),
+                            )
+                        )
+                if y_size is not None and data_axis1_length is not None and data_axis1_length != y_size:
+                    issues.append(
+                        ConventionIssue(
+                            check=f"array|shape|{datatype_id}|Y_size",
+                            severity=SEVERITY_FAIL,
+                            status=STATUS_FAIL,
+                            detail=f"data axis-1 length {data_axis1_length} != schema Y_size={y_size}",
+                            path=str(data_path),
+                            fieldname="Y_size",
+                            expected=str(y_size),
+                            observed=str(data_axis1_length),
+                        )
+                    )
+                metadata_count = _metadata_row_count(session_dir, datatype_id)
+                if metadata_count is not None and data_axis1_length is not None and metadata_count != data_axis1_length:
+                    issues.append(
+                        ConventionIssue(
+                            check=f"array|shape|{datatype_id}|metadata_rows",
+                            severity=SEVERITY_WARN,
+                            status=STATUS_WARN,
+                            detail=(
+                                f"metadata row count {metadata_count} != data axis-1 length "
+                                f"{data_axis1_length}"
+                            ),
+                            path=str(data_path),
+                            expected=str(data_axis1_length),
+                            observed=str(metadata_count),
+                        )
+                    )
+
+    loaded_timestamps = None
+    if timestamps_path is not None:
+        try:
+            loaded_timestamps = load_numeric_array(timestamps_path)
+            ok, detail = _numeric_array_is_float64_compatible(loaded_timestamps)
+            if ok and loaded_timestamps.ndim > 1:
+                squeezed = loaded_timestamps.squeeze()
+                if squeezed.ndim != 1:
+                    ok, detail = False, f"timestamps ndim={loaded_timestamps.ndim} (expected 1-D)"
+                else:
+                    loaded_timestamps = squeezed
+        except Exception as exc:
+            ok, detail = False, f"not loadable: {exc}"
+            loaded_timestamps = None
+
+        if ok:
+            issues.append(
+                ConventionIssue(
+                    check=f"array|load|{datatype_id}|timestamps",
+                    severity=SEVERITY_INFO,
+                    status=STATUS_PASS,
+                    detail="loadable; 1-D float64-compatible",
+                    path=str(timestamps_path),
+                    expected=str(timestamps_row.get("nwb_type", "")) if timestamps_row else "",
+                    observed=str(getattr(loaded_timestamps, "shape", "")),
+                )
+            )
+        else:
+            issues.append(
+                ConventionIssue(
+                    check=f"array|load|{datatype_id}|timestamps",
+                    severity=SEVERITY_FAIL,
+                    status=STATUS_FAIL,
+                    detail=detail,
+                    path=str(timestamps_path),
+                    expected="array_of_float64 1-D",
+                    observed="load failed" if loaded_timestamps is None else str(getattr(loaded_timestamps, "shape", "")),
+                )
+            )
+
+        if ok and loaded_timestamps is not None and loaded_data is not None and data_time_length is not None:
+            ts_len = int(np.asarray(loaded_timestamps).ravel().shape[0])
+            if ts_len != data_time_length:
+                issues.append(
+                    ConventionIssue(
+                        check=f"array|shape|{datatype_id}|timestamps_vs_data",
+                        severity=SEVERITY_FAIL,
+                        status=STATUS_FAIL,
+                        detail=f"len(timestamps)={ts_len} != data axis-0={data_time_length}",
+                        path=str(timestamps_path),
+                        expected=str(data_time_length),
+                        observed=str(ts_len),
+                    )
+                )
+
+    return issues
+
+
+def _issues_array_files_for_session(
+    expanded_rows: Sequence[Dict[str, str]],
+    dataset_dir: Path,
+    session_dir: Path,
+    session_record: Dict[str, str],
+    discovered_datatypes: Set[str],
+) -> List[ConventionIssue]:
+    issues: List[ConventionIssue] = []
+    for datatype_id in sorted(discovered_datatypes):
+        if datatype_id == "trialInfo":
+            continue
+        issues.extend(
+            _issues_array_files_for_datatype(
+                datatype_id=datatype_id,
+                expanded_rows=expanded_rows,
+                dataset_dir=dataset_dir,
+                session_dir=session_dir,
+                session_record=session_record,
+                discovered_datatypes=discovered_datatypes,
+            )
+        )
+    return issues
+
+
+def _issues_traces_microscope_consistency(
+    session_record: Dict[str, str],
+    discovered_datatypes: Set[str],
+) -> List[ConventionIssue]:
+    """Warn when multiple traces streams set microscope and values disagree."""
+    traces_ids = sorted(dt for dt in discovered_datatypes if dt.endswith("_traces"))
+    if len(traces_ids) < 2:
+        return []
+
+    values: Dict[str, str] = {}
+    for datatype_id in traces_ids:
+        field_name = f"{datatype_id}_microscope"
+        text = _normalize_compare_text(session_record.get(field_name, ""))
+        if text:
+            values[datatype_id] = text
+
+    if len(values) < 2 or len(set(values.values())) <= 1:
+        return []
+
+    detail = "; ".join(f"{datatype_id}={value!r}" for datatype_id, value in values.items())
+    return [
+        ConventionIssue(
+            check="consistency|traces_microscope|cross_stream",
+            severity=SEVERITY_WARN,
+            status=STATUS_WARN,
+            detail=f"traces streams disagree on microscope identity: {detail}",
+            path="sessionInfo",
+            fieldname="microscope",
+            expected="same Device.name when streams share one rig",
+            observed=detail,
+        )
+    ]
 
 
 def validate_session_format(config: ValidationConfig) -> SessionFormatResult:
@@ -1156,7 +1729,27 @@ def validate_session_format(config: ValidationConfig) -> SessionFormatResult:
         )
     )
     issues.extend(_issues_flag_file_consistency(config.session_dir, session_record, discovered_datatypes))
+    issues.extend(_issues_traces_microscope_consistency(session_record, discovered_datatypes))
+    issues.extend(
+        _issues_not_recommended_columns_present(
+            expanded_rows,
+            config.dataset_dir,
+            config.session_dir,
+            session_record,
+            discovered_datatypes,
+        )
+    )
+    issues.extend(_issues_spikewaves_area_vs_spiketimes(config.session_dir, discovered_datatypes))
     issues.extend(_issues_unexpected_files(config.session_dir, discovered_datatypes))
+    issues.extend(
+        _issues_array_files_for_session(
+            expanded_rows=expanded_rows,
+            dataset_dir=config.dataset_dir,
+            session_dir=config.session_dir,
+            session_record=session_record,
+            discovered_datatypes=discovered_datatypes,
+        )
+    )
 
     # Deduplicate identical fail/warn rows (type checks can repeat per trial row).
     issues = _dedupe_issues(issues)

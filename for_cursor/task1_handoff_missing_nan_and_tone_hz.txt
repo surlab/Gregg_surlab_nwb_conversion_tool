@@ -1,0 +1,31 @@
+Task 1 handoff — missing numeric cells use token NaN (confirm / sync)
+======================================================================
+Date: 2026-08-28
+From: data-clean pass (demo SurLab inputs)
+To: Task 1 (docs + conversion table notes only if still inconsistent)
+
+Context
+-------
+Data demos are converging on: **missing optional numeric trial cells = literal
+CSV token `NaN`** (not an empty cell). String columns such as **`correct`** still
+use an **empty cell** when unscored (early_press / passive).
+
+`SurLab data format documentation.md` and `sur_nwb_conversion_table.csv` already
+document NaN for float trial columns (`reaction_time__s`, etc.) as of 2026-08-28.
+This handoff is a **confirm-and-sync** check, not a new policy.
+
+Please verify / apply if needed
+-------------------------------
+
+1. Table notes for `trialInfo` float columns: missing = token **`NaN`**.
+2. Docs: same; reverse emits `NaN` for IEEE NaN.
+3. **`correct`**: scored `correct`|`incorrect`; unscored = **empty cell** (not
+   the token NaN). early_press must not appear in `correct`.
+4. **`tone_frequency__Hz`**: cell values are **hertz** (e.g. 4 kHz → **4000**).
+   Do not store `4kHz` strings; do not store the kHz digit under an `__Hz` header.
+5. Optional: `age__days` unknown → **empty cell** (not `U`, not token `NaN`).
+   Numeric trial floats still use token **`NaN`** when missing.
+
+Out of scope
+------------
+Task 2/4 code. Demo data already updated by data-clean scripts.

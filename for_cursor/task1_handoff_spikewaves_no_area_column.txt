@@ -1,0 +1,65 @@
+SurLab → NWB: Task 1 handoff — drop spikeWaves `area` metadata
+=============================================================
+Audience: Task 1 (conversion table + `SurLab data format documentation.md`).
+Task 2 follows after table/docs update. **No Task 2 code in this handoff.**
+
+Status: **APPLIED** (Task 1 table + docs + validator). Decisions: `not-recommended`
+row (not removed); warn if legacy column present; fail cross-unit mismatch vs
+spikeTimes; demos updated.
+
+Context: Kitchen-sink roundtrip flagged spikeWaves_metadata `area` vs Units
+`brain_area` (sourced from spikeTimes). User decision (Aug 2026):
+
+- **brain_area / region labels belong on spikeTimes Units metadata only.**
+- spikeWaves should **not** supply a separate `area` column.
+- If both ever present and disagree → **fail validation** (SurLab format
+  validator), not silent overwrite.
+
+===============================================================================
+Rationale
+===============================================================================
+
+- Sorted units already carry region in `spikeTimes_metadata.csv` → `area` →
+  NWB `Units.brain_area`.
+- Waveform snippets are per-unit snippets of the **same sorted units**; a
+  second region column on spikeWaves is redundant and caused roundtrip
+  confusion when forward skipped duplicate `brain_area`.
+- Per-unit anatomy for ecephys is a spike-sorting / spikeTimes concern, not a
+  waveform-array concern.
+
+===============================================================================
+Task 1 deliverables
+===============================================================================
+
+1. **`sur_nwb_conversion_table.csv`** (and `for_cursor/` sync)
+   - **Remove** stage 7 row:
+     `spikeWaves_metadata.csv` → `area` → `Units.custom_column_brain_area`
+   - Add policy note on spikeWaves stage 7 block:
+     “Region labels: use spikeTimes_metadata `area` only; spikeWaves must not
+     define `area`.”
+
+2. **`SurLab data format documentation.md`**
+   - Under spikeWaves metadata: remove `area` from allowed/recommended columns.
+   - Cross-reference spikeTimes `area` → `Units.brain_area`.
+   - Document validator rule: if `spikeWaves_metadata.csv` contains `area`
+     column → **fail** with message pointing to spikeTimes metadata.
+
+3. **Demo data (optional, Task 1 or user)**
+   - `demo_data/kitchen_sink_demo/.../spikeWaves_metadata.csv`: drop `area`
+     column (keep `unit_ID`, `primary_channel`).
+
+4. **Validator scope (Task 1 table note; Task 2 implements)**
+   - Fail when spikeWaves metadata header includes `area`.
+   - Fail when spikeTimes and spikeWaves both supply region labels for the
+     same `unit_ID` and values differ (defensive; should not occur once column
+     removed from spec).
+
+===============================================================================
+Unchanged
+===============================================================================
+
+- spikeTimes_metadata `area` → `Units.brain_area` (stage 2).
+- spikeWaves `primary_channel` → optional Units column (stage 7).
+- spikeWaves session scalars (probe, sample_frequency, clustering_algorithm).
+
+EOF

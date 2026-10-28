@@ -1,11 +1,54 @@
-This "demo_data" folder should include shared data for the purposes of demonstrating the code.
-Ideally it will include all the files needed for a complete end to end run of 1 "instance"
-(maybe one cell, session, or dataset).
-It should be able to demonstrate all of the functions in src, but not necessarily looping or
-parallelization included in scripts/main.
+# Demo datasets
 
-Only **`lfp_data_*.mat`** is gitignored (continuous LFP is ~GB; GitHub limit is 100 MB per file).
-Keep that file locally under `demo_data/` or point `config.py` at your lab data path. Other demo
-`.mat` files (timestamps, spike times, spike waves) are small enough to version in git.
+Format docs: [basics](../docs/surlab_format_basics.md), [field catalog](../docs/surlab_field_catalog.md), [NWB conversion notes](../docs/nwb_conversion_notes.md).
 
-Your real data should be stored elsewhere and pointed to with a path variable in repo/src/config.py
+Gitignores under `demo_data/`: continuous `lfp_data*` arrays, `*.nwb`,
+`roundtrip_surformat/`, runlogs, and validation reports (rebuild with the
+pipeline bats). Source SurLab session files for the demos stay tracked.
+
+## Canonical: `surlab_format_demo/`
+
+Primary end-to-end demo. Follows **current** SurLab naming and layout
+(minimal filenames, dunder unit suffixes, time×channels LFP, prefixed
+`lick_behEvents`, optional snippet-relative `spikeWaves_timestamps`).
+
+Rebuild from legacy sources + synthetic LFP/events:
+
+```bat
+python developer_scripts/build_surlab_format_demo.py
+```
+
+Point bats / README / tests at this folder.
+
+## Round-trip: `kitchen_sink_demo/`
+
+Synthetic all-modalities session for Task 5 round-trip testing (non-empty behTSeries,
+lfp, spikeWaves, behEvents, traces, operant trialInfo). Rebuild:
+
+```bat
+python developer_scripts/build_kitchen_sink_demo.py
+```
+
+Run round-trip:
+
+```bat
+run_roundtrip_kitchen_sink_demo.bat
+```
+
+See `for_cursor/dummy_dataset_empty_modalities_checklist.txt` for design notes.
+
+## Legacy archival: `SeqBias_AstroBlock_NPX/`
+
+Session `AstroDREADD25_20240702/` was rewritten to **canonical** SurLab naming
+(headers, trialInfo, schemas, minimal stems). Binary `.mat` arrays kept.
+Rebuild / re-apply:
+
+```bat
+python developer_scripts/canonicalize_seqbias_session.py
+```
+
+Other sessionInfo rows without folders remain for inventory only.
+Large `lfp_data*.mat` remains gitignored when present.
+
+Real lab data should live outside the repo and be pointed at via path args
+or `src/config.py`.

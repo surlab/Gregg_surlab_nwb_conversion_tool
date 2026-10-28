@@ -1,0 +1,54 @@
+Task 1 handoff — nwb_type precision for SurLab format validation
+================================================================
+Date: 2026-08-27
+From: format-validation / Task 5 side
+To: Task 1 (conversion table)
+
+*** APPLIED (Task 1, 2026-08-27) ***
+- No bare nwb_type=variable or array in sur_nwb_conversion_table.csv.
+- quality → float_or_str (+ notes → quality_metric / spikeTimes_quality_metric).
+- Layout X_idx/Y_idx/X_size/Y_size notes: length match when sizes present.
+- data_array / timestamps_array notes: presence + loadable + basic dtype;
+  shape/length vs schema/timestamps when available.
+- validate_only ≠ skip type-check (nwb_type=N/A skips type-check).
+- Policy row: (format_validation_nwb_type_rules).
+- Docs: SurLab data format documentation.md (nwb_type + validate_only section).
+- Demo path: demo_data/surlab_format_demo (not legacy SeqBias).
+- Still open: trialInfo correct / trial_type (separate consensus).
+
+Re-check:
+  python scripts/run_surlab_format_validation.py --dataset-dir demo_data/surlab_format_demo
+
+-------------------------------------------------------------------------------
+Original request (kept for history)
+-------------------------------------------------------------------------------
+
+Context
+-------
+`scripts/run_surlab_format_validation.py` type-checks SurLab cells against
+`sur_nwb_conversion_table.csv` column `nwb_type`. When `nwb_type` is too vague
+to enforce, the validator records a **table_gap** (warn), not a data failure.
+We need Task 1 to make those types concrete enough to validate (or explicitly
+mark them nwb_type=N/A to skip type-check — not the same as
+nwb_fieldname=validate_only, which still type-checks).
+
+Issue 1 — formerly `nwb_type=variable` (e.g. spikeTimes_metadata `quality`)
+-------------------------------------------------------------------------
+Resolved: use float_or_str; document numeric vs string vs empty; point at
+quality_metric companion field.
+
+Issue 2 — `nwb_type=array` / coarse array tokens
+------------------------------------------------
+Resolved: element-qualified types only. Length notes on layout indices.
+data_array/timestamps_array: presence + loadable + basic dtype (+ shape when
+schema/timestamps allow).
+
+Out of scope
+------------
+- Task 2/4 conversion code
+- trialInfo correct / trial_type (still open)
+
+Success criterion
+-----------------
+No table_gap rows whose detail is only nwb_type='variable' not validated or
+bare nwb_type='array' not validated, unless intentionally nwb_type=N/A.

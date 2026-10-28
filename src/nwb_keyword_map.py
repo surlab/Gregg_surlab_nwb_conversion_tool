@@ -74,6 +74,8 @@ def load_keyword_rules(table_rows: List[Dict[str, str]]) -> KeywordRules:
                 identity_suffixes.append("_traces")
             if "behtseries" in lowered:
                 identity_suffixes.append("_behTSeries")
+            if "behevents" in lowered:
+                identity_suffixes.append("_behEvents")
             continue
         if field_name.startswith("(") or not keyword_token:
             continue

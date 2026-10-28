@@ -1,0 +1,9 @@
+{
+  "X_dim": "time",
+  "X_size": 1000,
+  "Y_dim": "channel",
+  "Y_size": 8,
+  "data_unit_measurement": "amplitude__V",
+  "probe": "Neuropixel1.0",
+  "sample_frequency__Hz": 2500.0
+}

@@ -5,7 +5,7 @@ REM Validate SurLab format conventions for one dataset (presence, naming, types)
 
 if "%~1"=="" (
   echo Usage: run_surlab_format_validation.bat ^<dataset-dir^>
-  echo Example: run_surlab_format_validation.bat demo_data\SeqBias_AstroBlock_NPX
+  echo Example: run_surlab_format_validation.bat demo_data\surlab_format_demo
   exit /b 2
 )
 

@@ -1,0 +1,95 @@
+Task 2 handoff — forward gaps from round-trip (2026-08-28)
+==========================================================
+Date: 2026-08-28
+From: Task 5 round-trip on all demo_data/ datasets
+To: Task 2 (SurLab → NWB)
+
+Do not edit sur_nwb_conversion_table.csv (Task 1). Do not rewrite demo CSVs
+(data-clean agent). Reverse export is Task 4.
+
+Source logs / reports
+---------------------
+- demo_data/tricolor_projections/runlog_convert_and_validate.txt
+- demo_data/SeqBias_AstroBlock_NPX/runlog_convert_and_validate.txt
+- demo_data/tricolor_projections/exp101-a1_20260204-gratings/roundtrip_validation_report.csv
+
+----------------------------------------------------------------------
+1. Shared ophys Device — do not reset description (blocking tricolor)
+----------------------------------------------------------------------
+
+Session: demo_data/tricolor_projections/exp101-a1_20260204-gratings
+
+GCaMP8m_traces creates Device Bruker_Ultima with microscope_description.
+Neuropil_traces reuses the same name and fails:
+
+  AttributeError: can't set attribute 'description' -- already set
+  src/nwb_traces.py  _ensure_microscope_device
+
+Effect: Neuropil never written. Reverse logs "No RoiResponseSeries named
+Neuropil_traces". Task 5 reports 14 mismatches, all Neuropil sessionInfo /
+ROI metadata (orig filled, roundtrip empty). GCaMP8m and empty behTSeries
+were fine.
+
+Fix: if Device name already exists, reuse it; do not assign description again.
+If a second stream has a different description, warn and keep the first
+(kitchen_sink already has two traces streams on one microscope).
+
+Re-check:
+
+  python scripts/run_roundtrip_validation.py --dataset-dir demo_data/tricolor_projections --conversion-table sur_nwb_conversion_table.csv
+
+Expect Neuropil sessionInfo + Neuropil_traces_metadata.csv to match (same
+pattern as kitchen_sink two-stream traces).
+
+----------------------------------------------------------------------
+2. LFP MATLAB v7.3
+----------------------------------------------------------------------
+
+SeqBias LFP .mat is v7.3 HDF. scipy.io.loadmat in src/data_io.py
+load_numeric_array raises:
+
+  NotImplementedError: Please use HDF reader for matlab v7.3 files, e.g. h5py
+
+Forward: "Table gap: lfp handler failed". LFP never in NWB.
+
+Options (either is enough if SeqBias must convert):
+
+- Task 2: load v7.3 via h5py in load_numeric_array (also used by Task 5
+  triangulation — a crash there was the same file).
+- Data-clean: replace that .mat with .npz / v7 loadable by scipy (see data-clean
+  handoff). Prefer npz for demos if the agent can regenerate arrays.
+
+----------------------------------------------------------------------
+3. spikeWaves empty-array string '[]'
+----------------------------------------------------------------------
+
+Same SeqBias convert log:
+
+  Table gap: spikeWaves handler failed: could not convert string to float: '[]'
+
+Legacy metadata/schema used MATLAB-style empty. Canonical demos use empty
+cells or numeric arrays. Harden the spikeWaves metadata parser to treat '[]'
+as missing, or wait for data-clean to rewrite those cells.
+
+----------------------------------------------------------------------
+4. Do not "fix" by loosening coerce of legacy trialInfo
+----------------------------------------------------------------------
+
+SeqBias 4kHz→4, correct→1 is documented Task 2 coerce
+(for_cursor/task4_implementation_decisions_and_answers.txt Addendum D).
+Canonical demos already use numeric Hz/dB and correct|incorrect. Data-clean
+owns SeqBias cells. Do not store unit suffixes in NWB to make SeqBias match.
+
+----------------------------------------------------------------------
+5. Out of scope
+----------------------------------------------------------------------
+
+- spikeWaves_data_unit_measurement empty on reverse: Task 2 already writes
+  SurLabSchema_spikeWaves; table still points at Units (Task 1 + Task 4).
+- trialInfo 3-decimal rounding and reaction_time NaN→empty: Task 4.
+- age__days=U: data-clean / spec, not Subject.age inventing a duration.
+
+Success criterion
+-----------------
+- tricolor two traces streams both in NWB and round-trip
+- SeqBias LFP/spikeWaves either load or skip cleanly (no uncaught exception)

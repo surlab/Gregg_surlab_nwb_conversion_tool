@@ -70,7 +70,7 @@ def export_trial_info_from_nwb(
                 row[field_name] = ""
                 continue
             raw = trials[nwb_column][trial_index]
-            row[field_name] = _format_trial_cell(raw, nwb_type)
+            row[field_name] = _format_trial_cell(raw, nwb_type, field_name=field_name)
         for extra_name in extras:
             raw = trials[extra_name][trial_index]
             row[extra_name] = _format_trial_cell(raw, "str")
@@ -162,11 +162,34 @@ def _verbose_trialinfo_name(
     return resolved
 
 
-def _format_trial_cell(value: object, nwb_type: str) -> str:
+def _format_trial_cell(value: object, nwb_type: str, field_name: str = "") -> str:
     if value is None:
         return ""
 
     type_key = nwb_type.lower().replace("64", "").replace("32", "")
+
+    if field_name == "correct":
+        if isinstance(value, (float, int)) or hasattr(value, "item"):
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                numeric = None
+            if numeric is not None:
+                if math.isnan(numeric):
+                    return ""
+                if numeric == 1:
+                    return "correct"
+                if numeric == 0:
+                    return "incorrect"
+        text = str(value).strip()
+        lowered = text.lower()
+        if lowered in {"", "nan", "na", "n/a", "none", "null"}:
+            return ""
+        if lowered == "error":
+            return "incorrect"
+        if lowered in {"0", "1"}:
+            return "incorrect" if lowered == "0" else "correct"
+        return text
 
     if isinstance(value, (float, int)) or hasattr(value, "item"):
         try:
@@ -175,7 +198,11 @@ def _format_trial_cell(value: object, nwb_type: str) -> str:
             numeric = None
         if numeric is not None:
             if math.isnan(numeric):
+                # Float columns cannot store empty cells in NWB; round-trip as NaN.
                 return "NaN"
+            if field_name.endswith("__s") and type_key in {"float", "float64", "float32"}:
+                # Seconds in CSV: tenths of a millisecond (0.0001 s).
+                return f"{numeric:.4f}"
             if type_key in {"int", "integer"} or (
                 type_key in {"float", "float64"} and numeric.is_integer()
             ):

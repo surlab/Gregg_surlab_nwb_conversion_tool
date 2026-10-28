@@ -1,0 +1,96 @@
+Task 4 handoff — reverse gaps from round-trip (2026-08-28)
+==========================================================
+Date: 2026-08-28
+From: Task 5 round-trip on all demo_data/ datasets
+To: Task 4 (NWB → SurLab)
+
+Do not edit the conversion table (Task 1). Do not change forward writers
+(Task 2). Do not rewrite original demo CSVs (data-clean agent).
+
+Source reports
+--------------
+- demo_data/kitchen_sink_demo/KitchenSink01_20260827_roundtrip/roundtrip_validation_report.csv
+- demo_data/surlab_format_demo/AstroDREADD25_20240702/roundtrip_validation_report.csv
+- src/nwb_reverse_trial_info.py (time / NaN formatting)
+- src/nwb_table_reader.py (Units vs SurLabSchema reads)
+
+----------------------------------------------------------------------
+1. Read spikeWaves_data_unit_measurement from SurLabSchema
+----------------------------------------------------------------------
+
+Mismatch: orig='amplitude__au' roundtrip='' (kitchen_sink and surlab_format_demo).
+
+Forward already stores the token in SurLabSchema_spikeWaves (see convert log:
+"Units.waveform_unit is fixed by PyNWB; stored data_unit_measurement in
+SurLabSchema"). Reverse still follows the table row NWBFile/units
+custom_column_data_unit_measurement, finds no Units column, writes empty.
+
+Do the same fallback as spikeTimes_data_unit_measurement:
+
+- Prefer LabMetaData SurLabSchema_spikeWaves / data_unit_measurement
+- After Task 1 retargets the table row, nwb_table_reader should follow that
+  location (do not keep looking for a Units custom column)
+
+Until Task 1 lands, a temporary dual-read (Units column then schema) is OK so
+kitchen_sink can go to 0 mismatches.
+
+Re-check:
+
+  python scripts/run_roundtrip_validation.py --dataset-dir demo_data/kitchen_sink_demo --conversion-table sur_nwb_conversion_table.csv
+
+----------------------------------------------------------------------
+2. trialInfo time columns: 3-decimal truncation
+----------------------------------------------------------------------
+
+surlab_format_demo trialInfo row 2:
+
+  start_time__s      orig 23.6366  roundtrip 23.637
+  stop_time__s       orig 29.6366  roundtrip 29.637
+  stimulus_onset__s  orig 24.1566  roundtrip 24.157
+  stimulus_offset__s orig 24.6566  roundtrip 24.657
+
+Cause: reverse formats *__s floats with :.3f (except reaction_time__s uses
+:.4f). Original CSV has 4 decimals. NWB likely still has the float; export
+is rounding.
+
+Fix: write enough digits to round-trip the original (e.g. :.4f or general
+format like .12g), or keep 3 decimals only if Task 1 documents millisecond
+precision as the SurLab contract. Do not change original demo times.
+
+----------------------------------------------------------------------
+3. reaction_time__s NaN vs empty
+----------------------------------------------------------------------
+
+surlab_format_demo: orig='NaN' roundtrip=''.
+
+Reverse currently: NaN on reaction_time__s → "" ; other NaNs → "NaN".
+
+Align with spec: empty cell = missing. If data-clean rewrites orig NaN to
+empty, Task 5 will match without a reverse change. If orig keeps the token
+NaN, reverse should emit NaN for that field (same as other numeric NaNs).
+
+Pick one and apply it consistently for all numeric trialInfo columns.
+
+----------------------------------------------------------------------
+4. SeqBias correct / output after coerce
+----------------------------------------------------------------------
+
+If SeqBias remains uncleaned: NWB holds coerced 1 / blank; reverse may emit
+1 and empty instead of correct and nan. Canonical reverse already maps 1→correct
+and empty nan tokens in nwb_reverse_trial_info.py — verify that path runs for
+legacy headers (output vs action). Prefer data-clean so this session is not
+the reverse test.
+
+----------------------------------------------------------------------
+5. Out of scope
+----------------------------------------------------------------------
+
+- Neuropil empty reverse on tricolor: forward never wrote the stream (Task 2).
+- LFP v7.3 / spikeWaves '[]': forward + data-clean.
+- age__days U: original invalid; reverse empty is correct.
+
+Success criterion
+-----------------
+- kitchen_sink: 0 mismatches after schema read for spikeWaves unit
+- surlab_format_demo: trial time columns match within documented precision;
+  reaction_time missing token matches orig

@@ -28,6 +28,7 @@ LEGACY_TRIALINFO_FIELD_MAP = {
     "tone_freq": "tone_frequency__Hz",
     "tone_intensity": "tone_intensity__dB",
     "reaction_time": "reaction_time__s",
+    "output": "action",
 }
 
 
@@ -226,10 +227,16 @@ def _coerce_trial_value(raw: str, nwb_type: str, field_name: str) -> Tuple[objec
 
     if field_name == "correct":
         lowered = cleaned.lower()
+        if lowered in {"", "nan", "na", "n/a", "none", "null"}:
+            return "", True
+        if lowered == "early_press":
+            return cleaned, False
         if lowered in {"1", "true", "yes", "correct"}:
-            return 1, True
+            return "correct", True
         if lowered in {"0", "false", "no", "error", "incorrect"}:
-            return 0, True
+            return "incorrect", True
+        if lowered in {"correct", "incorrect"}:
+            return lowered, True
 
     if type_key in {"float", "float64"}:
         parsed = _parse_leading_number(cleaned)

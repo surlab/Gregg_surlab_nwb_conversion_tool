@@ -10,22 +10,34 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 from src.conversion_table import (
     condition_datatype_id,
+    expand_rows_for_datatypes,
     filter_dev_stage,
     is_informational_row,
     read_conversion_table,
     row_applies_to_session,
 )
 from src.nwb_keyword_map import (
+    apply_keywords_to_session_row,
     discover_datatypes_from_keywords,
     keywords_from_nwb,
     load_keyword_rules,
 )
+from src.nwb_reverse_beh_events import export_beh_events_from_nwb
+from src.nwb_reverse_beh_tseries import export_beh_tseries_from_nwb
+from src.nwb_reverse_lfp import export_lfp_from_nwb
 from src.nwb_reverse_spike_times import export_spike_times_from_nwb
+from src.nwb_reverse_spike_waves import export_spike_waves_from_nwb
+from src.nwb_reverse_traces import export_traces_from_nwb
 from src.nwb_reverse_trial_info import export_trial_info_from_nwb
 from src.nwb_table_reader import (
+    discover_beh_events_datatypes,
+    discover_beh_tseries_datatypes,
+    discover_traces_datatypes,
+    find_lfp_electrical_series,
     parse_experiment_description,
     read_legacy_lab_meta_extras,
     read_nwb_value_for_row,
+    units_has_waveforms,
 )
 from src.nwb_triangulation import find_session_nwb
 from src.session_record import LEGACY_TO_CANONICAL_FIELD_MAP, field_non_empty
@@ -99,6 +111,16 @@ def _discover_present_datatypes(nwbfile, table_rows: List[Dict[str, str]]) -> Se
         present.add("spikeTimes")
     if getattr(nwbfile, "trials", None) is not None and len(nwbfile.trials) > 0:
         present.add("trialInfo")
+    for traces_id in discover_traces_datatypes(nwbfile):
+        present.add(traces_id)
+    for beh_id in discover_beh_tseries_datatypes(nwbfile):
+        present.add(beh_id)
+    if find_lfp_electrical_series(nwbfile) is not None:
+        present.add("lfp")
+    if units_has_waveforms(nwbfile):
+        present.add("spikeWaves")
+    for beh_events_id in discover_beh_events_datatypes(nwbfile):
+        present.add(beh_events_id)
     return present
 
 
@@ -137,6 +159,12 @@ def _ordered_sessioninfo_columns(
             required.append(field_name)
         else:
             optional.append(field_name)
+    # Per-stream identity keyword columns (e.g. GCaMP8m_traces) are not table rows.
+    if present_datatypes:
+        for datatype_id in sorted(present_datatypes):
+            if datatype_id.endswith(("_traces", "_behTSeries", "_behEvents")) and datatype_id not in seen:
+                optional.append(datatype_id)
+                seen.add(datatype_id)
     return required + optional
 
 
@@ -196,11 +224,22 @@ def build_session_row_from_nwb(
 ) -> tuple[Dict[str, str], List[str], Set[str]]:
     """Build one sessionInfo row from NWB using conversion table rows."""
     present_datatypes = _discover_present_datatypes(nwbfile, stage_rows)
-    ordered_columns = _ordered_sessioninfo_columns(stage_rows, present_datatypes)
+    expanded_rows = expand_rows_for_datatypes(stage_rows, present_datatypes)
+    ordered_columns = _ordered_sessioninfo_columns(expanded_rows, present_datatypes)
     row = {column: "" for column in ordered_columns}
     warnings: List[str] = []
 
-    for table_row in stage_rows:
+    rules = load_keyword_rules(stage_rows)
+    warnings.extend(
+        apply_keywords_to_session_row(
+            row,
+            keywords_from_nwb(nwbfile),
+            rules,
+            set(ordered_columns) | set(row.keys()),
+        )
+    )
+
+    for table_row in expanded_rows:
         if not _is_sessioninfo_row(table_row):
             continue
         if is_informational_row(table_row):
@@ -293,8 +332,9 @@ def convert_dataset_nwb_to_surlab(config: ReverseConversionConfig) -> ReverseCon
             output_dir.mkdir(parents=True, exist_ok=True)
             roundtrip_dirs.append(output_dir)
 
+            expanded_for_headers = expand_rows_for_datatypes(stage_rows, present_datatypes)
             headers_for_session = _all_headers(
-                _ordered_sessioninfo_columns(stage_rows, present_datatypes),
+                _ordered_sessioninfo_columns(expanded_for_headers, present_datatypes),
                 [row],
             )
             session_csv = output_dir / config.output_session_info_name
@@ -324,6 +364,50 @@ def convert_dataset_nwb_to_surlab(config: ReverseConversionConfig) -> ReverseCon
                             }
                         )
 
+            if config.dev_max_stage is None or config.dev_max_stage >= 3:
+                if any(datatype_id.endswith("_traces") for datatype_id in present_datatypes):
+                    traces_files = export_traces_from_nwb(
+                        nwbfile,
+                        output_dir,
+                        dataset_id,
+                        row,
+                        conversion_rows,
+                        dev_max_stage=config.dev_max_stage or 99,
+                        present_datatypes=present_datatypes,
+                    )
+                    files_written.extend(traces_files)
+                    for path in traces_files:
+                        report_rows.append(
+                            {
+                                "nwb_file": str(nwb_path),
+                                "output_file": str(path),
+                                "status": "written",
+                                "datatype": "traces",
+                            }
+                        )
+
+            if config.dev_max_stage is None or config.dev_max_stage >= 4:
+                if any(datatype_id.endswith("_behTSeries") for datatype_id in present_datatypes):
+                    beh_files = export_beh_tseries_from_nwb(
+                        nwbfile,
+                        output_dir,
+                        dataset_id,
+                        row,
+                        conversion_rows,
+                        dev_max_stage=config.dev_max_stage or 99,
+                        present_datatypes=present_datatypes,
+                    )
+                    files_written.extend(beh_files)
+                    for path in beh_files:
+                        report_rows.append(
+                            {
+                                "nwb_file": str(nwb_path),
+                                "output_file": str(path),
+                                "status": "written",
+                                "datatype": "behTSeries",
+                            }
+                        )
+
             if config.dev_max_stage is None or config.dev_max_stage >= 5:
                 if "trialInfo" in present_datatypes:
                     trial_files = export_trial_info_from_nwb(
@@ -345,6 +429,70 @@ def convert_dataset_nwb_to_surlab(config: ReverseConversionConfig) -> ReverseCon
                             }
                         )
 
+            if config.dev_max_stage is None or config.dev_max_stage >= 6:
+                if "lfp" in present_datatypes:
+                    lfp_files = export_lfp_from_nwb(
+                        nwbfile,
+                        output_dir,
+                        dataset_id,
+                        row,
+                        conversion_rows,
+                        dev_max_stage=config.dev_max_stage or 99,
+                    )
+                    files_written.extend(lfp_files)
+                    for path in lfp_files:
+                        report_rows.append(
+                            {
+                                "nwb_file": str(nwb_path),
+                                "output_file": str(path),
+                                "status": "written",
+                                "datatype": "lfp",
+                            }
+                        )
+
+            if config.dev_max_stage is None or config.dev_max_stage >= 7:
+                if "spikeWaves" in present_datatypes:
+                    spike_waves_files = export_spike_waves_from_nwb(
+                        nwbfile,
+                        output_dir,
+                        dataset_id,
+                        row,
+                        conversion_rows,
+                        dev_max_stage=config.dev_max_stage or 99,
+                    )
+                    files_written.extend(spike_waves_files)
+                    for path in spike_waves_files:
+                        report_rows.append(
+                            {
+                                "nwb_file": str(nwb_path),
+                                "output_file": str(path),
+                                "status": "written",
+                                "datatype": "spikeWaves",
+                            }
+                        )
+
+            if config.dev_max_stage is None or config.dev_max_stage >= 8:
+                if any(datatype_id.endswith("_behEvents") for datatype_id in present_datatypes):
+                    beh_events_files = export_beh_events_from_nwb(
+                        nwbfile,
+                        output_dir,
+                        dataset_id,
+                        row,
+                        conversion_rows,
+                        dev_max_stage=config.dev_max_stage or 99,
+                        present_datatypes=present_datatypes,
+                    )
+                    files_written.extend(beh_events_files)
+                    for path in beh_events_files:
+                        report_rows.append(
+                            {
+                                "nwb_file": str(nwb_path),
+                                "output_file": str(path),
+                                "status": "written",
+                                "datatype": "behEvents",
+                            }
+                        )
+
             for warning in warnings:
                 report_rows.append(
                     {
@@ -358,10 +506,16 @@ def convert_dataset_nwb_to_surlab(config: ReverseConversionConfig) -> ReverseCon
     # Dataset-level headers: union of columns that applied to any session.
     all_present: Set[str] = set()
     for row in session_rows:
-        all_present.update(k for k, v in row.items() if k in {"lfp", "spikeTimes", "spikeWaves", "trialInfo", "behEvents"} and v == "1")
+        all_present.update(
+            k
+            for k, v in row.items()
+            if k in {"lfp", "spikeTimes", "spikeWaves", "trialInfo", "behEvents"} and v == "1"
+        )
+        all_present.update(k for k, v in row.items() if k.endswith(("_traces", "_behTSeries", "_behEvents")) and v == "1")
         if row.get("spikeTimes") == "1":
             all_present.add("spikeTimes")
-    ordered_columns = _ordered_sessioninfo_columns(stage_rows, all_present or None)
+    expanded_dataset_rows = expand_rows_for_datatypes(stage_rows, all_present or set())
+    ordered_columns = _ordered_sessioninfo_columns(expanded_dataset_rows, all_present or None)
     # Prefer union of actual written headers so per-session stream scalars are kept.
     dataset_headers = _all_headers(ordered_columns, session_rows)
     dataset_roundtrip_dir = config.dataset_dir / config.output_subdir

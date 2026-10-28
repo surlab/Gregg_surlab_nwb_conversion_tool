@@ -3,7 +3,7 @@ setlocal
 
 REM Dev double-click: demo dataset convert + validate, then open summary and reports.
 
-set DATASET_DIR=demo_data\SeqBias_AstroBlock_NPX
+set DATASET_DIR=demo_data\surlab_format_demo
 set REPO_DIR=%~dp0
 pushd "%REPO_DIR%"
 call conda activate surlab_nwb_conversion_tool

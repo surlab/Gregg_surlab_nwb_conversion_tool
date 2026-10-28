@@ -1,0 +1,8 @@
+{
+  "X_dim": "units",
+  "X_size": 5,
+  "Y_dim": "spikes",
+  "data_unit_measurement": "time__s",
+  "probe": "Neuropixel1.0",
+  "sample_frequency__Hz": 30000.0
+}

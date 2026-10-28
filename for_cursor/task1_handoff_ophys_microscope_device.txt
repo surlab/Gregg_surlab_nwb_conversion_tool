@@ -1,0 +1,218 @@
+SurLab → NWB: Task 1 handoff — ophys microscope Device (traces / stage 3)
+=========================================================================
+Audience: Task 1 (conversion table + `SurLab data format documentation.md`).
+Source: Task 2 design discussion (Aug 2026). Update table/docs first; Task 2
+will wire forward conversion against the updated rows.
+
+Status: **APPLIED** (Task 1 table + docs updated). Task 2 implements forward conversion against updated rows.
+
+Related applied handoffs:
+- `for_cursor/task1_handoff_ophys_schema_labmetadata.txt` (SurLabSchema leftovers;
+  core ophys scalars; layout validate_only)
+- `for_cursor/task1_handoff_lfp_and_behevents.txt` (ecephys `Device.name` =
+  `spikeTimes_probe` / `lfp_probe` precedent)
+
+Related Task 2 context (do not implement in Task 1):
+- Forward traces currently create `{datatypeID}_device` with
+  `MISSING_REQUIRED_FOR_NWB` because SurLab has no microscope field yet.
+- `objectives`, `laser_name`, `detection_software`, FOV sizes, etc. already
+  map elsewhere (OpticalChannel / ImagingPlane / SurLabSchema) — they are
+  **not** the microscope Device.
+
+===============================================================================
+Background — how detailed is NWB Device naming for microscopes?
+===============================================================================
+
+PyNWB / community practice (see PyNWB ophys tutorial, NeuroConv ophys metadata):
+
+**`Device.name`** — short, stable **instrument identity**, human-readable:
+  - Examples: `Thorlabs Bergamo II`, `Bruker Ultima`, `Femtonics Atlas`
+  - Used for linking `ImagingPlane.device` and for searching archives by scope
+  - **Not** typically a full config string (galvo/resonant/piezo stack, year,
+    every addon). That belongs in **`Device.description`** or structured fields.
+
+**`Device.description`** — free text (optional but recommended):
+  - Mods, resonant vs galvo path, acquisition software note, room/rig nickname
+  - Example: `Two-photon; resonant + galvo; Prairie View 5.4`
+  - PyNWB also supports `was_generated_by` for software versions (optional future)
+
+**`DeviceModel`** (PyNWB 3+, optional structured layer):
+  - `manufacturer` (e.g. Bruker, Thorlabs, Femtonics)
+  - `model_number` / model name (e.g. `Ultima`, `BERGAMO`)
+  - Linked from `Device.model` — useful for cross-file search
+  - SurLab may add manufacturer/model as **optional** separate columns if Task 1
+    wants structured round-trip; otherwise description-only is acceptable v1.
+
+**What SurLab already has (do not conflate with Device.name):**
+| Existing field | Typical content | Current / intended NWB home |
+| -------------- | --------------- | --------------------------- |
+| `{datatypeID}_objectives` | `16X_0.8NA` | `SurLabSchema_<datatypeID>` |
+| `{datatypeID}_detection_software` | `Suite2p`, `Prairie View` | SurLabSchema (software ≠ hardware) |
+| `{datatypeID}_laser_name` | laser line label | SurLabSchema |
+| `{datatypeID}_indicator` | `GCaMP8m` | OpticalChannel.name / ImagingPlane.indicator |
+| FOV / pixel_size fields | geometry | SurLabSchema or ImagingPlane when honest |
+
+**Naming convention recommendation for SurLab (Task 1 to lock in docs):**
+- **`{datatypeID}_microscope`** (recommended sessionInfo column): value like
+  `Bruker_Ultima`, `Femtonics_Atlas`, `Thorlabs_Bergamo_II`
+  - snake_case or spaces OK in CSV; converter sanitizes for NWB if needed
+  - Same physical scope → **repeat the same string** on each traces stream
+    (`GCaMP8m_traces_microscope`, `Neuropil_traces_microscope`, …)
+- **Avoid** as `Device.name`: long rig strings such as
+  `2015_bruker_ultima_with_res_galvo_and_piezo` unless a lab explicitly
+  standardizes on that as their short ID — prefer that text for
+  **`{datatypeID}_microscope_description`** instead.
+
+**Multi-stream / shared scope:**
+- One NWB `Device` per distinct `{datatypeID}_microscope` **value** in a
+  session (Task 2 dedupes by name, same pattern as shared `Neuropixel1.0`).
+- Separate `{datatypeID}` streams still get separate ImagingPlanes /
+  OpticalChannels / RoiResponseSeries even when they share one microscope Device.
+
+===============================================================================
+Goals (Task 1)
+===============================================================================
+
+1. Add a **canonical SurLab source** for the ophys microscope so Task 2 can
+   stop inventing `{datatypeID}_device` placeholders when real rig info exists.
+2. Map it to **stock PyNWB** `NWBFile/devices` → `Device.name` linked from
+   `ImagingPlane.device` (one Device per microscope identity, shared across
+   streams when values match).
+3. Keep **`objectives`**, **`detection_software`**, etc. in their existing
+   targets — do not move them onto Device unless mapping is honest (software
+   → description or `was_generated_by`, not `Device.name`).
+4. Document fallback: when `{datatypeID}_microscope` absent → Task 2 continues
+   `MISSING_REQUIRED_FOR_NWB` Device naming until data supplied (unchanged policy).
+
+===============================================================================
+Locked placement (proposed — Task 1 confirm or adjust)
+===============================================================================
+
+A) Microscope identity → stock Device (per traces stream, deduped by value)
+| SurLab (canonical) | NWB |
+| ------------------ | --- |
+| `{datatypeID}_microscope` (sessionInfo, **recommended**) | `NWBFile/devices` → **`Device.name`** |
+| optional legacy mirror: `{datatypeID}_schema.json` key `microscope` | same target (dual-read; fail if both disagree) |
+| (derived) | `ImagingPlane.device` → that Device object for this stream’s plane |
+
+Rules:
+- **Stream-scoped sessionInfo column** header = full datatype ID prefix, e.g.
+  `GCaMP8m_traces_microscope`, `Neuropil_traces_microscope` (same pattern as
+  `{datatypeID}_indicator`, `{datatypeID}_detection_software`).
+- **Requirement level:** `recommended` when `*_traces` stream flag is 1
+  (warn if missing; do not fail whole session — fallback marker still valid).
+- Task 2 creates **one Device per distinct name** in the file; reuses existing
+  Device if another stream (or earlier session handler) already registered it.
+- Remove / supersede table implication that `{datatypeID}_device` is the
+  permanent NWB name — that was a Task 2 scaffolding placeholder only.
+
+B) Optional extended hardware text (v1 — pick one approach)
+| SurLab | NWB |
+| ------ | --- |
+| `{datatypeID}_microscope_description` (optional, plain text) | `Device.description` |
+| OR fold into description from schema mirror key `microscope_description` | same |
+
+Rules:
+- Free-form rig notes (galvo/resonant, piezo, objective turret, room label).
+- **Do not** duplicate `{datatypeID}_detection_software` here — acquisition
+  software stays SurLabSchema / separate column (Suite2p ≠ microscope).
+
+C) Optional structured model (v2 — Task 1 may defer rows to “future”)
+| SurLab | NWB |
+| ------ | --- |
+| `{datatypeID}_microscope_manufacturer` | `DeviceModel.manufacturer` or Device.description |
+| `{datatypeID}_microscope_model` | `DeviceModel.name` / `model_number` |
+
+If deferred: note in docs that v1 is `microscope` + optional
+`microscope_description` only; structured DeviceModel can be a follow-up handoff.
+
+D) Unchanged (explicit non-goals for this handoff)
+- ImagingPlane `location`, `grid_spacing`, `origin_coords` — still
+  `MISSING_REQUIRED_FOR_NWB` or SurLabSchema when SurLab lacks honest values.
+- OpticalChannel / indicator / emission_lambda — unchanged rows.
+- ROI metadata (`roi_x_coordinates`, `roi_center_x`, …) — unchanged.
+- No session-level aggregate `microscope` column (prefer per-stream repeat;
+  same value across streams is OK).
+
+===============================================================================
+Demo / dataset examples (for documentation only)
+===============================================================================
+
+**tricolor_projections** (Prairie / Bruker-class rig):
+- Add to sessionInfo when known, e.g.
+  `GCaMP8m_traces_microscope=Bruker_Ultima` (illustrative — confirm with lab)
+  `GCaMP8m_traces_microscope_description=2P Prairie View; 16X 0.8NA objective`
+- Keep existing `GCaMP8m_traces_objectives=16X_0.8NA` in SurLabSchema.
+
+**Naming examples table for docs:**
+
+| Good `Device.name` (microscope column) | Put in description instead |
+| -------------------------------------- | -------------------------- |
+| `Bruker_Ultima` | `resonant + galvo; Prairie View 5.4` |
+| `Femtonics_Atlas` | `FAST variant; custom piezo stage` |
+| `Thorlabs_Bergamo_II` | `Mesoscope path; ScanImage 2023` |
+
+===============================================================================
+Task 1 deliverables
+===============================================================================
+
+1. **`SurLab data format documentation.md`**
+   - New subsection under optical traces / NWB mapping:
+     **“Microscope Device (traces)”** — naming granularity (short name vs
+     description), per-stream `{datatypeID}_microscope` column, shared Device
+     when values match, fallback when absent.
+   - Update metadata tables:
+     - Add `{datatypeID}_microscope` (+ optional description) to sessionInfo
+       scalar list for traces.
+     - Clarify distinction vs `objectives`, `detection_software`, `indicator`.
+   - Update “Required PyNWB scaffolding” bullet: microscope Device is now
+     **sourced from SurLab when column present**; placeholder only when absent.
+   - Fix ROI column names in docs if still singular (`roi_x_coordinates`).
+
+2. **`sur_nwb_conversion_table.csv`** (and sync `for_cursor/` copy)
+   - Add stage 1 (or stage 3) rows:
+     - `sessionInfo`: `{datatypeID}_microscope` → `NWBFile/devices`, `Device.name`
+     - optional: `{datatypeID}_microscope_description` → `Device.description`
+     - optional schema mirror rows with dual-read notes (same pattern as probe)
+   - Add one **policy row** e.g. `(traces_microscope_Device_and_ImagingPlane)`
+     summarizing: Device.name from microscope column; ImagingPlane.device link;
+     dedupe by name across streams; placeholder when missing.
+   - Update `(per_stream_SurLabSchema_LabMetaData)` policy note if it still
+     lists “Device” only under MISSING scaffolding — split “microscope Device
+     when provided” vs “other geometry still missing”.
+   - Requirement: `recommended` for `{datatypeID}_microscope` when traces present.
+
+3. **Validator / type rules**
+   - `nwb_type`: `str` for microscope name and description.
+   - No bare `nwb_type=variable`; document example values in `notes`.
+
+4. **Demo data (optional, Task 1 or user)**
+   - Add plausible `*_traces_microscope` values to
+     `demo_data/tricolor_projections/sessionInfo_*.csv` when rig identity is
+     known; otherwise leave absent and document fallback in README.
+
+===============================================================================
+Task 2 follow-up (after Task 1 — do not block on Task 1 doc edits)
+===============================================================================
+
+- Replace `{datatypeID}_device` placeholder with `create_device(name=microscope)`
+  when `{datatypeID}_microscope` resolved (sessionInfo-first, schema mirror).
+- Reuse existing `nwbfile.devices[name]` when second traces stream shares name.
+- Set `ImagingPlane.device` to that Device.
+- Keep `MISSING_REQUIRED_FOR_NWB` device name only when column absent.
+- Task 4 reverse: read `Device.name` / `description` back to sessionInfo columns.
+
+===============================================================================
+Open questions for Task 1 / user (resolve in table notes)
+===============================================================================
+
+1. **Column basename:** `{datatypeID}_microscope` vs `{datatypeID}_scope` vs
+   `{datatypeID}_imaging_system` — recommend **`_microscope`** (matches NWB
+   tutorial wording).
+2. **Session-wide single column:** allow optional dataset-level
+   `imaging_microscope` as fallback when all traces streams share one rig?
+   (Recommend **no** for v1 — per-stream repeat is simpler; add later if needed.)
+3. **DeviceModel rows now or v2?** Recommend **v2** unless user wants
+   manufacturer/model columns immediately.
+
+EOF

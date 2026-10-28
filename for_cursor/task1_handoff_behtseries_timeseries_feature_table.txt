@@ -1,0 +1,39 @@
+SurLab → NWB: Task 1 handoff — behTSeries (stage 4) core placement
+==================================================================
+Audience: Task 1 (conversion table + documentation).
+Source: Task 2 design discussion (Aug 2026). Update table/docs first; Task 2
+will implement forward conversion against the updated rows.
+
+*** APPLIED (Task 1, 2026-08-27) ***
+- Stage-4 table: acquisition/<datatypeID> TimeSeries (data, timestamps, unit, rate)
+- Feature metadata → processing/behavior/<datatypeID>_features (feature_ID,
+  feature_label, custom_columns); row i ↔ data column i
+- Layout remains validate_only; schema leftovers → SurLabSchema_<datatypeID>
+- sessionInfo behTSeries unit/rate paths updated to named TimeSeries object
+- Docs: subsection "behTSeries → stock TimeSeries + feature DynamicTable"
+- Policy row: (behTSeries_TimeSeries_and_features_table)
+- Stage-8 event_ID notes: future _events DynamicTable pattern (interim custom_column)
+- No ndx-pose / custom TimeSeries subclass for core path
+- Task 2: re-read SurLab data format documentation.md + sur_nwb_conversion_table.csv
+
+Status: **DECISIONS LOCKED** for stage-4 core data. Do not introduce ndx-pose
+or a custom TimeSeries subclass for behTSeries.
+
+-------------------------------------------------------------------------------
+Original handoff (kept for history)
+-------------------------------------------------------------------------------
+
+Goals
+-----
+1. Keep core behavioral time-series data in stock PyNWB only
+   (TimeSeries + DynamicTable). No extension required to read data/labels.
+2. Document what each feature column is in a real table — not only LabMetaData.
+3. Allow optional rare schema leftovers in SurLabSchema_<datatypeID>.
+4. Fully reversible SurLab ↔ NWB without ndx-pose.
+
+One-line summary
+----------------
+behTSeries core = stock acquisition/<datatypeID> TimeSeries + stock
+processing/behavior/<datatypeID>_features DynamicTable (aligned by row
+order); SurLabSchema LabMetaData only for rare schema leftovers — not for
+feature identity or arrays.

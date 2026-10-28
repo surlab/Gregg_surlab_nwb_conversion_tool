@@ -4,7 +4,7 @@ setlocal
 REM Task 4: Reverse convert NWB files to SurLab under roundtrip_surformat/
 REM Log: demo_data\...\runlog.txt
 
-set DATASET_DIR=demo_data\SeqBias_AstroBlock_NPX
+set DATASET_DIR=demo_data\surlab_format_demo
 set CONVERSION_TABLE=sur_nwb_conversion_table.csv
 set REPO_DIR=%~dp0..
 pushd "%REPO_DIR%"

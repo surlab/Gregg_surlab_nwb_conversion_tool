@@ -359,3 +359,30 @@ Task 4 exports NWB `intervals/trials` → `trialInfo_<datasetID>_<animal>_<sessi
 - Presence: keyword `trials` and/or non-empty `nwbfile.trials`.
 - Known non-round-trippable demo values after Task 2 coerce: `4kHz`→`4`,
   `correct`→`1`, string `nan`→empty when NWB stored blank.
+
+-------------------------------------------------------------------------------
+Addendum E: traces reverse export (table stage 3)
+-------------------------------------------------------------------------------
+Task 4 reverse for `*_traces` streams (no dependency on Task 2 source):
+
+- Extend `nwb_table_reader` for ophys RoiResponseSeries / ImagingPlane /
+  OpticalChannel / PlaneSegmentation and `lab_meta_data/SurLabSchema_<datatypeID>`.
+- Discover streams: keywords `*_traces` then named RoiResponseSeries.
+- Export data/timestamps (.npz), metadata.csv, schema.json under
+  `roundtrip_surformat/` with verbose names.
+- Dual-write stream scalars via expanded `<datatypeID>_*` sessionInfo rows.
+- `validate_only` layout keys imputed from arrays/ROI table (not NWB duplicates).
+- Suite2p (ROI x time) transposed to time x ROI on export when timestamps say so.
+
+-------------------------------------------------------------------------------
+Addendum F: behTSeries reverse export (table stage 4)
+-------------------------------------------------------------------------------
+Task 4 reverse for `*_behTSeries` streams:
+
+- `acquisition/<datatypeID>` TimeSeries → data/timestamps .npz (time x features)
+- `processing/behavior/<datatypeID>_features` DynamicTable → metadata.csv
+- Core scalars from TimeSeries.unit; `sample_frequency__Hz` from TimeSeries.rate
+  when set, else SurLabSchema LabMetaData (forward stores rate there when timestamps
+  are written)
+- validate_only layout keys imputed from arrays + feature table
+- Discovery: keywords `*_behTSeries` + named acquisition TimeSeries

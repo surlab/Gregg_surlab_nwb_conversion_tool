@@ -1,0 +1,112 @@
+Dummy dataset checklist — empty / missing modalities (from current demos)
+==========================================================================
+Date: 2026-08-27
+Implemented: demo_data/kitchen_sink_demo/ (build: developer_scripts/build_kitchen_sink_demo.py)
+Source: round-trip reports + on-disk inventory for
+  - demo_data/tricolor_projections/exp101-a1_20260204-gratings
+  - demo_data/SeqBias_AstroBlock_NPX/AstroDREADD25_20240702
+
+Use this to design a synthetic session that fills gaps the real demos do not cover.
+Implementation status below reflects current code (forward + reverse handlers exist
+for all table modalities; round-trip has only been verified where noted).
+
+Legend
+------
+  ABSENT     — sessionInfo flag off and/or no SurLab files
+  EMPTY      — flag on, files present, but zero timepoints / placeholder arrays
+  PARTIAL    — modality present but optional metadata/schema fields empty
+  INCONSIST  — files exist but sessionInfo flag disagrees
+  VERIFIED   — round-trip match on at least one real demo session
+
+----------------------------------------------------------------------
+A. Whole modalities — absent or not exercised
+----------------------------------------------------------------------
+
+| Modality | tricolor | SeqBias | Code | Round-trip tested? | Dummy should add |
+|----------|----------|---------|------|-------------------|------------------|
+| spikeTimes | ABSENT (flag=0) | VERIFIED (309 units) | yes | SeqBias only | — (covered) |
+| *_traces (ophys) | VERIFIED (GCaMP8m, Neuropil) | ABSENT | yes | tricolor | Optional 2nd stream / minimal 1 ROI |
+| *_behTSeries | EMPTY (see B) | ABSENT | yes | tricolor (empty) | **Non-empty pupil + wheel** (e.g. T×3 features) |
+| trialInfo (operant) | ABSENT (uses passive_trialInfo only) | VERIFIED | yes | SeqBias only | **Operant trialInfo** on imaging session |
+| passive_trialInfo | present (241 trials) | N/A | yes? | not in Task 5 table as trialInfo | Map or separate datatype row |
+| lfp | ABSENT (flag=0) | INCONSIST (flag=0, files on disk) | yes | **not verified** | **lfp=1 + small LFP array** (e.g. 1000×32) |
+| spikeWaves | ABSENT (flag=0) | present (82×309 waveforms) | yes | **not verified** | Small spikeWaves + sessionInfo scalars |
+| behEvents | ABSENT (flag=0) | INCONSIST (flag=1, **no files**) | yes | **never** | **One behEvents stream** (e.g. lick_behEvents) |
+| experimentDesc.pdf | ABSENT | ABSENT | n/a | skipped | Optional PDF for dataset-level row |
+
+Notes
+- No demo_data folder contains any *behEvents* files today.
+- tricolor has passive_trialInfo.csv only (grating passive viewing); no operant trialInfo.csv.
+- SeqBias has lfp_data/metadata/schema but sessionInfo lfp=0 — good stress case for flag vs files.
+
+----------------------------------------------------------------------
+B. Present but empty arrays (need non-empty dummy)
+----------------------------------------------------------------------
+
+tricolor — pupil_behTSeries, wheel_behTSeries
+  - sessionInfo flag: 1
+  - data shape: (0, 1)  — zero timepoints, one placeholder feature
+  - timestamps shape: (0,)
+  - schema: X_size=0, Y_size=1, sample_frequency__Hz=0
+  - Round-trip: **match** (empty ↔ empty) — does not test real behavioral time series
+
+Dummy target: e.g. (500, 3) data + 500 timestamps, metadata with feature_label rows,
+  non-zero sample_frequency__Hz, optional Y_idx in schema.
+
+----------------------------------------------------------------------
+C. Optional metadata empty in originals (partial fill)
+----------------------------------------------------------------------
+
+These skipped as skipped_original_missing in round-trip (not failures).
+A “full” dummy session should populate at least one stream with each field once.
+
+tricolor — traces (GCaMP8m, Neuropil), optional empty in both:
+  - sessionInfo: fov_depth__um, pixel_size__au, pixel_size_calibration
+  - schema: X_idx (validate_only; often omitted)
+
+tricolor — behTSeries (pupil, wheel), most ophys-like scalars empty:
+  - sessionInfo: detection_software, fov_*, laser_name, objectives, pixel_size_*
+  - schema: Y_idx
+
+SeqBias — spikeTimes sessionInfo (in schema but not sessionInfo column):
+  - data_unit_measurement, filter_*, quality_metric, sample_frequency__Hz
+
+SeqBias — spikeWaves sessionInfo scalars empty:
+  - clustering_algorithm, data_unit_measurement, sample_frequency__Hz
+
+----------------------------------------------------------------------
+D. Suggested minimal “kitchen sink” dummy session (one session_dir)
+----------------------------------------------------------------------
+
+One session with sessionInfo flags all relevant modalities = 1:
+
+1. spikeTimes      — small (10 units, few spikes each)          [copy SeqBias pattern]
+2. GCaMP8m_traces  — small (100 frames × 5 ROIs)               [copy tricolor pattern]
+3. pupil_behTSeries — **non-empty** (500 × 3)                    [fills biggest gap]
+4. trialInfo       — ~20 operant trials (action/correct/trial_type columns)
+5. lfp             — small (1000 × 16), lfp=1                    [not round-trip tested]
+6. spikeWaves      — small (40 samples × 10 units)             [not round-trip tested]
+7. lick_behEvents  — one event type, ~50 events                  [no demo exists]
+8. experimentDesc.pdf — one page placeholder                     [optional]
+
+Also include one stream intentionally omitted (flag=0, no files) to test N/A paths,
+e.g. wheel_behTSeries=0 with no wheel files.
+
+----------------------------------------------------------------------
+E. Round-trip verification status (Task 5, as of 2026-08-27)
+----------------------------------------------------------------------
+
+VERIFIED (0 mismatches on tricolor):
+  - GCaMP8m_traces, Neuropil_traces (full data)
+  - pupil_behTSeries, wheel_behTSeries (empty data)
+
+VERIFIED (SeqBias, spikeTimes-focused; trialInfo exported):
+  - spikeTimes data/metadata/schema
+  - many sessionInfo fields (see SeqBias report)
+
+NOT YET VERIFIED on real demo data:
+  - lfp (SeqBias has files; flag off)
+  - spikeWaves (SeqBias has data; not run in recent tricolor-focused pass)
+  - behEvents (no files anywhere)
+  - operant vs passive trialInfo naming on tricolor
+  - non-empty behTSeries

@@ -1,0 +1,7 @@
+namespaces:
+- doc: SurLab leftover stream schema as LabMetaData
+  name: ndx-surlab-schema
+  schema:
+  - namespace: core
+  - source: ndx-surlab-schema.extensions.yaml
+  version: 0.1.0

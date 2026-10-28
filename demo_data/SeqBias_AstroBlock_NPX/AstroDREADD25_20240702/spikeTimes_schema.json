@@ -1,0 +1,13 @@
+{
+  "X_dim": "units",
+  "X_size": 309,
+  "Y_dim": "spikes",
+  "acquisition_software": "SpikeGLX",
+  "data_unit_measurement": "time__s",
+  "filter_cutoff_high__Hz": 9000.0,
+  "filter_cutoff_low__Hz": 300.0,
+  "filter_type": "bandpass",
+  "probe": "Neuropixel1.0",
+  "sample_frequency__Hz": 30000.0,
+  "sorting_software": "Kilosort"
+}

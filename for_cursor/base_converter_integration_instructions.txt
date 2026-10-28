@@ -1,0 +1,347 @@
+Instructions for the base converter agent
+==========================================
+Purpose: wire the base converter repo to this package for SurLab → NWB,
+official PyNWB validation, and round-trip validation — without editing any
+code in Gregg_surlab_nwb_conversion_tool.
+
+Upstream package repo:
+  https://github.com/surlab/Gregg_surlab_nwb_conversion_tool
+
+Pip distribution name: surlab-nwb-conversion
+Import package name (for now): src
+
+
+-------------------------------------------------------------------------------
+1. Install (do this in the base converter env / setup)
+-------------------------------------------------------------------------------
+
+Add to environment setup (conda env + pip, or requirements):
+
+  pip install "git+https://github.com/surlab/Gregg_surlab_nwb_conversion_tool.git"
+
+Optional pin for reproducibility (recommended in CI):
+
+  pip install "git+https://github.com/surlab/Gregg_surlab_nwb_conversion_tool.git@<commit-or-tag>"
+
+Local dev when both repos are checked out side by side:
+
+  pip install -e /path/to/Gregg_surlab_nwb_conversion_tool
+
+Runtime deps (pynwb, hdmf, numpy, pandas, scipy) are pulled by pip install.
+Do not vendor or fork this repo into the base converter tree.
+
+
+-------------------------------------------------------------------------------
+2. Conversion table — always use the copy from this package
+-------------------------------------------------------------------------------
+
+The mapping spec lives in sur_nwb_conversion_table.csv. Task 1 agents update
+it in Gregg_surlab_nwb_conversion_tool; consumers should not maintain a
+separate copy.
+
+In base converter code, resolve the table at runtime:
+
+  from src import default_conversion_table_path
+
+  conversion_table = default_conversion_table_path()
+
+Pass conversion_table into every call that accepts conversion_table_path /
+--conversion-table. Do not hardcode a path to a local CSV in the base converter
+repo unless you intentionally override the bundled table for an experiment.
+
+Staying up to date:
+- Non-editable git install: the table is bundled inside the installed package.
+  Re-run pip install (same git URL, or @main / @commit) after upstream table
+  changes to pick up updates.
+- Editable install (-e): table resolves from the upstream repo root while
+  that checkout is updated (best for active co-development).
+
+If default_conversion_table_path() raises FileNotFoundError, reinstall the
+package; do not patch upstream code from the base converter repo.
+
+
+-------------------------------------------------------------------------------
+3. When to run (pipeline order)
+-------------------------------------------------------------------------------
+
+The base converter’s job is whatever upstream acquisition/format step produces
+SurLab-layout data on disk. After that step completes successfully for a
+dataset directory, run this package’s steps in order:
+
+  Step A — SurLab → NWB (forward conversion)
+  Step B — Official PyNWB validation (pynwb.validate)
+  Step C — NWB → SurLab reverse export + round-trip value comparison (Task 5)
+
+Do not skip A before B. Run C only after A has written .nwb files under the
+dataset tree (B can pass or fail; C still needs the NWB from A).
+
+Important: implement A–C by importing the installed library. Do not shell out
+to scripts/ or .bat files inside Gregg_surlab_nwb_conversion_tool — those
+entry points are for human/dev use in that repo and are not installed as
+console commands in the pip package.
+
+
+-------------------------------------------------------------------------------
+4. Expected dataset layout (input to this package)
+-------------------------------------------------------------------------------
+
+dataset_dir/
+  sessionInfo_<datasetID>.csv          # dataset-level metadata
+  <session_subdir>/                    # one folder per session (non-hidden)
+    sessionInfo_single_session.csv     # or per-session row in aggregate file
+    spikeTimes_<datatypeID>.csv         # when present
+    <stream>_traces.csv                # when present (ophys)
+    trialInfo_<datatypeID>.csv         # when present
+    ... other SurLab modality files as implemented upstream ...
+
+Dataset ID is inferred from the folder name. Session subdirs are discovered
+automatically (see src.session_record.discover_session_dirs).
+
+Forward conversion writes one NWB per session into the session folder:
+  {animal_ID}_{session_ID}.nwb
+
+Reverse conversion (round-trip) writes under:
+  <session_subdir>/roundtrip_surformat/
+
+See demo_data/surlab_format_demo/ in the upstream repo for a minimal example.
+
+
+-------------------------------------------------------------------------------
+5. Library calls (copy this orchestration into the base converter)
+-------------------------------------------------------------------------------
+
+Use logging in the base converter (not print). Suggested log names:
+  runlog_convert_and_validate.txt
+  runlog_roundtrip_validation.txt
+under the dataset directory (match upstream conventions).
+
+--- Step A + B: forward convert all sessions, then PyNWB validate ---
+
+  import logging
+  from pathlib import Path
+
+  from src import (
+      ConversionConfig,
+      convert_surlab_session_to_nwb,
+      default_conversion_table_path,
+      validate_nwb_files_in_dataset,
+      write_dataset_validation_summary,
+  )
+  from src.session_record import (
+      discover_session_dirs,
+      load_session_record,
+      nwb_output_basename,
+  )
+  from src.surlab_paths import dataset_id_from_dir
+
+  def run_forward_convert_and_validate(dataset_dir: Path) -> None:
+      dataset_dir = dataset_dir.resolve()
+      conversion_table = default_conversion_table_path()
+      dataset_id = dataset_id_from_dir(dataset_dir)
+
+      for session_dir in discover_session_dirs(dataset_dir):
+          session_record = load_session_record(dataset_dir, session_dir, dataset_id)
+          output_nwb = session_dir / f"{nwb_output_basename(session_record)}.nwb"
+          config = ConversionConfig(
+              dataset_dir=dataset_dir,
+              session_dir=session_dir,
+              conversion_table_path=conversion_table,
+              output_nwb_path=output_nwb,
+              dev_max_stage=None,
+          )
+          result = convert_surlab_session_to_nwb(config)
+          logging.info("NWB written: %s", result.output_nwb_path)
+          for warning in result.warnings:
+              logging.warning(warning)
+          for gap in result.table_gaps:
+              logging.warning("Table gap: %s", gap)
+
+      results = validate_nwb_files_in_dataset(dataset_dir=dataset_dir)
+      summary = write_dataset_validation_summary(dataset_dir=dataset_dir, results=results)
+      logging.info("PyNWB validation summary: %s", summary)
+
+Outputs:
+  - Per session: {animal_ID}_{session_ID}.nwb, {stem}_pynwb_validation_report.txt
+  - Dataset: nwb_validation_summary.csv
+
+Treat PyNWB failures as logged failures; policy for blocking downstream steps
+is the base converter owner’s choice (upstream Task 5 records them but only
+exits non-zero on value mismatches in the comparison step).
+
+
+--- Step C: round-trip validation (snapshot → reverse → compare) ---
+
+  from src.NWB_to_sur import ReverseConversionConfig, convert_dataset_nwb_to_surlab
+  from src.roundtrip_validation import (
+      ComparisonConfig,
+      capture_original_snapshot,
+      compare_session_roundtrip,
+      discover_session_dirs,
+      load_nwb_validation_status,
+      write_dataset_summary,
+      write_session_report,
+  )
+  from src import default_conversion_table_path
+
+  def run_roundtrip_validation(dataset_dir: Path) -> int:
+      """Returns process exit code: 0 if no value mismatches, 1 if any mismatch."""
+      dataset_dir = dataset_dir.resolve()
+      conversion_table = default_conversion_table_path()
+
+      session_dirs = discover_session_dirs(dataset_dir)
+      snapshots = {
+          session_dir: capture_original_snapshot(
+              dataset_dir=dataset_dir,
+              session_dir=session_dir,
+              conversion_table_path=conversion_table,
+          )
+          for session_dir in session_dirs
+      }
+
+      # Reverse export (NWB → SurLab under roundtrip_surformat/)
+      reverse_config = ReverseConversionConfig(
+          dataset_dir=dataset_dir,
+          conversion_table_path=conversion_table,
+      )
+      convert_dataset_nwb_to_surlab(reverse_config)
+
+      comparison_config = ComparisonConfig(
+          dataset_dir=dataset_dir,
+          conversion_table_path=conversion_table,
+      )
+      session_results = []
+      total_mismatches = 0
+      for session_dir in session_dirs:
+          result = compare_session_roundtrip(
+              dataset_dir=dataset_dir,
+              session_dir=session_dir,
+              config=comparison_config,
+              snapshot=snapshots[session_dir],
+          )
+          passed, note = load_nwb_validation_status(dataset_dir, session_dir)
+          result.nwb_validation_passed = passed
+          result.nwb_validation_note = note
+          write_session_report(result, session_dir / "roundtrip_validation_report.csv")
+          session_results.append(result)
+          total_mismatches += result.mismatch_count
+
+      write_dataset_summary(
+          dataset_dir=dataset_dir,
+          results=session_results,
+          output_csv=dataset_dir / "roundtrip_validation_summary.csv",
+          forward_ok=True,
+          reverse_ok=True,
+      )
+      return 1 if total_mismatches > 0 else 0
+
+Capture snapshots before reverse conversion (as above) so originals are preserved
+even if reverse overwrites in-session files.
+
+Outputs:
+  - Per session: roundtrip_validation_report.csv, roundtrip_surformat/*
+  - Dataset: roundtrip_validation_summary.csv
+
+Exit code convention (match upstream Task 5): non-zero only when at least one
+table-driven value mismatch is found between original SurLab and round-trip SurLab.
+
+
+--- Optional: SurLab format validation before forward conversion ---
+
+See section 9 (Step N-2) for the recommended gate after your converter writes
+SurLab layout data.
+
+
+-------------------------------------------------------------------------------
+6. What NOT to do
+-------------------------------------------------------------------------------
+
+- Do not edit, fork, or submodule Gregg_surlab_nwb_conversion_tool from the
+  base converter repo unless explicitly asked.
+- Do not copy sur_nwb_conversion_table.csv into the base converter repo as the
+  long-term source of truth.
+- Do not depend on upstream scripts/*.py or root *.bat paths.
+- Do not rename import src to something else — that rename is deferred upstream.
+- Do not reimplement SurLab ↔ NWB mapping logic; table-driven functions in this
+  package are the spec.
+
+
+-------------------------------------------------------------------------------
+7. Smoke test after wiring
+-------------------------------------------------------------------------------
+
+1. pip install the git URL into a clean env used by the base converter.
+2. Point at upstream demo_data/surlab_format_demo/ (or a dataset your pipeline
+   just produced in SurLab layout).
+3. Run Step A+B, then Step C.
+4. Confirm nwb_validation_summary.csv and roundtrip_validation_summary.csv exist.
+5. Bump/reinstall the git package and confirm default_conversion_table_path()
+   still resolves without a local CSV override.
+
+
+-------------------------------------------------------------------------------
+8. Reference docs in upstream repo
+-------------------------------------------------------------------------------
+
+- README.md — install, I/O formats, task summaries
+- for_cursor/packaging_pip_git_install_plan.txt — packaging constraints
+- SurLab data format documentation.md — field naming (validation reference)
+
+Questions about table rows or new modalities: fix upstream in
+Gregg_surlab_nwb_conversion_tool (Task 1 / conversion table), then reinstall
+or refresh editable install — not in the base converter.
+
+
+-------------------------------------------------------------------------------
+9. Steps N-2 and N-1 (after your converter writes SurLab layout)
+-------------------------------------------------------------------------------
+
+Your repo’s own instructions cover acquisition / random-format → SurLab.
+Use this package for the steps below. Do not edit upstream code.
+
+Step N-2 — SurLab format validation (pure input check; not NWB, not round-trip)
+  Purpose: primary success gate — did the converter produce table-conformant
+  SurLab data? Reports missing required fields (fail) and recommended fields
+  (warn), plus naming, types, sessionInfo↔schema, and flag-vs-file checks.
+
+  from src import ValidationConfig, default_conversion_table_path, validate_session_format
+  from src.session_record import discover_session_dirs
+  from src.validator import write_convention_report_csv, write_format_summary_csv, write_validation_matrix_csv
+
+  conversion_table = default_conversion_table_path()
+  results = []
+  for session_dir in discover_session_dirs(dataset_dir):
+      result = validate_session_format(ValidationConfig(
+          dataset_dir=dataset_dir,
+          session_dir=session_dir,
+          conversion_table_path=conversion_table,
+      ))
+      write_convention_report_csv(result.issues, session_dir / "surlab_format_validation_report.csv")
+      write_validation_matrix_csv(result.matrix_rows, session_dir / "session_validation_report.csv")
+      results.append(result)
+
+  write_format_summary_csv(results, dataset_dir / "surlab_format_validation_summary.csv")
+
+  Proceed to N-1 only when every session has fail_count == 0 (recommended
+  gaps may remain as warns). Read surlab_format_validation_report.csv and
+  session_validation_report.csv for details (cells: found / missing (Required) /
+  not found (recommended)).
+
+  Array files (.mat/.npz): when present, N-2 also checks loadability,
+  float64-compatible dtypes, 1-D timestamps, timestamps length vs data axis-0,
+  and schema X_size/Y_size (and X_idx/Y_idx lengths) where specified in the
+  conversion table / datatype schema.
+
+  Still not validated here: deep scientific QC (sampling quality, physiology
+  plausibility, plots) — that belongs in your separate QC package (steps N,
+  N+1 in your pipeline).
+
+Step N-1 — SurLab → NWB + official PyNWB validation
+  Same as section 5 “Step A + B”. Run only after N-2 passes.
+  Outputs: .nwb per session, nwb_validation_summary.csv.
+
+Step N (your repo) — basic QC and analysis plots
+  Implemented in a different package; not part of surlab-nwb-conversion.
+
+Optional upstream integration test — round-trip validation
+  Same as section 5 “Step C”. Run after N-1 when you want SurLab ↔ NWB value
+  comparison; not required for the base converter success gate.

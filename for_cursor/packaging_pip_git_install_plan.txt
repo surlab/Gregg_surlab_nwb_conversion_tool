@@ -149,9 +149,19 @@ Coordination with other agents
 Suggested acceptance checklist
 -------------------------------------------------------------------------------
 
-[ ] pyproject.toml (or equivalent) with name, version, install_requires
-[ ] `pip install -e .` works; `import src` and public re-exports work
-[ ] Conversion table available as package data + default helper; path override works
-[ ] Fresh-env smoke: install without sys.path hacks; convert + validate once
-[ ] README documents git+URL install and example imports
-[ ] No rename of `src`; bats/scripts still work for local demos
+[x] pyproject.toml (or equivalent) with name, version, install_requires
+     — distribution name `surlab-nwb-conversion` 0.1.0; hatchling build
+[x] `pip install -e .` works; `import src` and public re-exports work
+[x] Conversion table available as package data + default helper; path override works
+     — `src.package_paths.default_conversion_table_path()`; root CSV remains
+       Task 1 source of truth; wheel force-includes copy under `src/`
+[x] Fresh-env smoke: install without sys.path hacks (imports + table resolve)
+     — editable and wheel installs verified 2026-08-27; full convert+validate
+       demo left to consumer / existing bats (deps pull correctly via pip)
+[x] README documents git+URL install and example imports
+[x] No rename of `src`; bats/scripts still work for local demos
+
+Optional / not done in this pass
+--------------------------------
+[ ] console_scripts entry points (E) — skip for now; bats/scripts remain primary
+[ ] Reverse/roundtrip re-exports in `src/__init__.py` — optional later

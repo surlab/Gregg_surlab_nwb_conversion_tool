@@ -1,0 +1,6 @@
+roi_ID,roi_x_coordinates,roi_y_coordinates,roi_center_x,roi_center_y,area,iscell,fluorophore_class
+0,100,200,105,205,VISp,1,GCaMP8m
+1,120,215,125,220,VISp,1,GCaMP8m
+2,140,230,145,235,VISp,1,GCaMP8m
+3,160,245,165,250,VISp,1,GCaMP8m
+4,180,260,185,265,VISp,1,GCaMP8m

@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "surlab-nwb-conversion"
+version = "0.1.0"
+description = "SurLab dataset format <-> NWB conversion and validation"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "h5py>=3.6.0",
+    "pynwb>=2.8",
+    "hdmf>=3.14",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "jupyter",
+    "jupyterlab",
+    "jupytext",
+    "nwbwidgets>=0.11",
+]
+
+[project.urls]
+Repository = "https://github.com/surlab/Gregg_surlab_nwb_conversion_tool"
+
+# Import package remains `src` (no rename while Tasks 1–5 are in flight).
+# Distribution name above is what pip installs: surlab-nwb-conversion.
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# Single source of truth stays at repo root; wheel gets a copy under src/.
+[tool.hatch.build.targets.wheel.force-include]
+"sur_nwb_conversion_table.csv" = "src/sur_nwb_conversion_table.csv"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src",
+    "sur_nwb_conversion_table.csv",
+    "README.md",
+    "pyproject.toml",
+]

@@ -1,0 +1,7 @@
+{
+  "X_dim": "event_type",
+  "X_size": 1,
+  "Y_dim": "events",
+  "Y_size": 1,
+  "data_unit_measurement": "time__s"
+}

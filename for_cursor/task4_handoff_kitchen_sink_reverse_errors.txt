@@ -1,0 +1,286 @@
+SurLab ← NWB: Task 4 handoff — kitchen-sink reverse / roundtrip errors
+======================================================================
+Audience: Task 4 (`nwb_table_reader.py`, `nwb_reverse_*.py`, sessionInfo/schema
+export). Task 5 roundtrip validator may need tolerance tweaks where noted.
+
+Status: **NOT YET APPLIED** — documents bugs seen in kitchen-sink roundtrip.
+
+Source artifacts:
+- `demo_data/kitchen_sink_demo/KitchenSink01_20260827_roundtrip/
+  roundtrip_validation_report.csv`
+- Forward NWB:
+  `demo_data/kitchen_sink_demo/KitchenSink01_20260827_roundtrip/
+  KitchenSink01_20260827_roundtrip.nwb`
+
+Related locked policy (forward + reverse targets):
+- `for_cursor/task2_forward_gaps_decisions_kitchen_sink.txt`
+- `for_cursor/task1_handoff_spikewaves_no_area_column.txt` (drop spikeWaves area)
+
+Coupling: Some rows tagged `task2_forward` in the report are **reverse reader
+bugs** (wrong NWB object). Task 4 can fix readers now for fields already present
+in NWB; other rows need Task 2 forward writes first, then Task 4 reads.
+
+===============================================================================
+Executive summary
+===============================================================================
+
+Primary reverse defect: **`nwb_table_reader.py` resolves ecephys Device fields
+from the wrong Device** (`_first_device()` → first inserted device, often
+`GCaMP8m_traces_device`), instead of the **shared probe Device**
+(`Neuropixel1.0`).
+
+Secondary defects:
+- `sorting_software` read from **`_first_processing_module()`** (`behavior`)
+  instead of probe `Device.description`.
+- `spikeWaves_sample_frequency__Hz` reader looks for **Units column** instead
+  of **`Units.waveform_rate`**.
+- **behEvents** `data_unit_measurement` exports full description string instead
+  of parsed token `time__s`.
+- **trialInfo** float formatting (`10.000` vs `10`) — validator or export
+  formatting, not wrong NWB data.
+- **spikeWaves `area`** — spec being removed; reverse should stop exporting it
+  after Task 1 table update.
+
+===============================================================================
+Observed in forward NWB (ground truth for reverse)
+===============================================================================
+
+Devices (insertion order matters for broken `_first_device()` fallback):
+  1. `GCaMP8m_traces_device`  — desc `MISSING_REQUIRED_FOR_NWB` (ophys placeholder)
+  2. `Neuropil_traces_device`   — desc `MISSING_REQUIRED_FOR_NWB`
+  3. `Neuropixel1.0`            — desc `acquisition_software=SpikeGLX; sorting_software=Kilosort4`
+
+Units table (partial):
+  - Columns present: `brain_area`, `depth`, `quality`, `sorting_id`, `spike_times`,
+    `waveforms`, `primary_channel`
+  - **`device` column may be absent** on older NWB files — reverse must still
+    resolve probe by name / LFP electrodes when column missing (see §1).
+  - **`waveform_rate = 30000`** — spikeWaves rate is already in NWB.
+
+Processing modules:
+  - `behavior` — behTSeries features (description mentions behavioral streams)
+  - `ophys` — traces-related
+  - **No dedicated Kilosort module** — sorting software is on probe Device only
+    (locked policy; do not require processing module on reverse).
+
+===============================================================================
+§1 — Probe / Device fields (HIGHEST PRIORITY)
+===============================================================================
+
+**Report symptoms** (`likely_owner=task2_forward` but reverse bug):
+| SurLab field | Original | Broken roundtrip | Wrong source |
+|--------------|----------|------------------|--------------|
+| `spikeTimes_probe` | Neuropixel1.0 | GCaMP8m_traces_device | `_first_device()` |
+| `spikeWaves_probe` | Neuropixel1.0 | GCaMP8m_traces_device | same |
+| `lfp_schema.probe` | Neuropixel1.0 | GCaMP8m_traces_device | same |
+| `spikeTimes_acquisition_software` | SpikeGLX | MISSING_REQUIRED_FOR_NWB | wrong Device.description |
+| `spikeTimes_sorting_software` | Kilosort4 | behavioral continuous streams… | `_first_processing_module()` |
+
+Note: sessionInfo **`lfp_probe`** row **matched** — some export paths already
+resolve LFP probe correctly; **schema.json `probe` mirror** paths still hit
+generic device reader.
+
+**Root cause (`src/nwb_table_reader.py`):**
+- `_device_for_datatype()` only special-cases `lfp` and `spikeWaves`; **spikeTimes
+  falls through to `_first_device()`**.
+- `_first_device()` returns `units.device[0]` if column exists, else **first
+  device in dict iteration order** → ophys placeholder.
+- `_read_processing_field()` uses `_first_processing_module()` for
+  `sorting_software` — wrong module.
+
+**Required fix — central probe resolver**
+
+Add `_device_for_ecephys_probe(nwbfile, datatype_id)` used for all ecephys
+Device.name / Device.description reads:
+
+Priority order:
+1. **`Units.device[0]`** when Units exists, `device` column populated, and
+   datatype is spikeTimes or spikeWaves (or any row with notes referencing probe).
+2. **`_device_for_lfp(nwbfile)`** when datatype is `lfp` (existing logic).
+3. **Named device lookup:** if reverse export already knows expected probe name
+   from a prior row (e.g. sessionInfo export order), use `nwbfile.devices[name]`.
+4. **Heuristic:** among `nwbfile.devices`, prefer Device whose description
+   contains `acquisition_software=` or `sorting_software=` key=value pairs.
+5. **Exclude** devices whose name ends `_device` and description is
+   `MISSING_REQUIRED_FOR_NWB` (ophys scaffolding).
+6. Last resort: `_first_device()` with warning logged.
+
+Wire `_read_device_field()` and schema/sessionInfo export for:
+- `spikeTimes_probe`, `spikeWaves_probe`, `lfp_probe`
+- `spikeTimes_acquisition_software`, `spikeTimes_sorting_software`
+- schema mirror keys `probe`, `acquisition_software`, `sorting_software`
+
+**`Device.description` parsing (existing helpers):**
+- Use `lookup_key_value_text()` / `parse_key_value_text()` for
+  `acquisition_software=SpikeGLX` and `sorting_software=Kilosort4`.
+- Plain-text fallback only when table notes say single-field description.
+
+**Remove / bypass for sorting software:**
+- `_read_processing_field()` must **not** return `behavior` module description
+  for `spikeTimes_sorting_software` after Task 1 retargets table to Device.
+- Until table updated: follow decision doc — read sorting from **probe Device**,
+  not processing.
+
+**Files to touch:**
+- `src/nwb_table_reader.py` — `_device_for_datatype`, `_read_device_field`,
+  `_read_processing_field`, new probe resolver
+- Any `nwb_reverse_*` modules that call device helpers directly with wrong device
+- `src/tests_task4.py` — extend kitchen-sink-style fixture: ophys placeholder
+  devices + Neuropixel1.0 + behavior module; assert probe/software export
+
+**Depends on Task 2 (not blocking reader fix):**
+- Forward should populate `Units.device` consistently so priority (1) is reliable.
+
+===============================================================================
+§2 — spikeTimes session scalars (reader + forward)
+===============================================================================
+
+Report: filters, sample rate, data_unit, quality_metric empty on roundtrip.
+
+| Field | NWB source (after Task 2 forward) | Task 4 read path |
+|-------|-----------------------------------|------------------|
+| `filter_*`, `filter_type` | `SurLabSchema_spikeTimes` schema_json | `_read_surlab_schema_field()` — same as lfp |
+| `sample_frequency__Hz` | `SurLabSchema_spikeTimes` | **Not** Units column |
+| `data_unit_measurement` (`time__s`) | `SurLabSchema_spikeTimes` or static convention | Emit `time__s` without Units column |
+| `quality_metric` | `Units.quality_metric_description` | Read constant column description or first row value |
+
+**Task 4 now:** extend LabMetaData reader for `SurLabSchema_spikeTimes` (copy
+pattern from `SurLabSchema_lfp` in `nwb_reverse_lfp.py` / table reader).
+
+**Do not** implement reverse read of `custom_column_sampling_rate__Hz` on Units
+for spikeTimes — table being retargeted (Task 1).
+
+===============================================================================
+§3 — spikeWaves sample frequency
+===============================================================================
+
+**Report:** `spikeWaves_schema.json` `sample_frequency__Hz` skipped — reader
+looks for Units column (`units column missing`).
+
+**Fix:** In `read_nwb_scalar_for_row` / units reader, when row maps to
+spikeWaves rate:
+- Read **`getattr(nwbfile.units, 'waveform_rate', None)`** (session scalar).
+- Export to sessionInfo `spikeWaves_sample_frequency__Hz` and schema mirror.
+
+Task 1 updates table `nwb_fieldname` from `custom_column_sampling_rate__Hz` to
+`waveform_rate` (or documents scalar on Units table).
+
+**Files:** `nwb_table_reader.py`, `nwb_reverse_spike_waves.py`, `tests_task4.py`
+
+===============================================================================
+§4 — spikeWaves metadata `area` (spec removal)
+===============================================================================
+
+**Report:** row 5 `area` PFC vs roundtrip VISp — reverse exported spikeTimes
+`brain_area` into spikeWaves metadata (wrong file/column after Task 1).
+
+**Task 4 after Task 1:**
+- Stop exporting `area` column in `nwb_reverse_spike_waves.py`.
+- Do not map `Units.brain_area` → spikeWaves_metadata.
+
+See Task 1 handoff for validator + table removal.
+
+===============================================================================
+§5 — behEvents `data_unit_measurement`
+===============================================================================
+
+**Report:** orig `time__s` vs roundtrip
+`SurLab behEvents stream lick_behEvents; unit=time__s`.
+
+**Fix:** On reverse export of schema/sessionInfo:
+- Parse `data_unit_measurement` from EventsTable / acquisition **description**
+  via `_parse_data_unit_from_description()` (already exists in table reader).
+- Emit plain **`time__s`** to schema JSON and sessionInfo column.
+- Prefer SurLabSchema mirror when present.
+
+Forward will standardize description template (Task 2); reverse must parse, not
+echo full description.
+
+**Files:** `nwb_table_reader.py`, `nwb_reverse_beh_events.py`, `tests_task4.py`
+
+===============================================================================
+§6 — trialInfo float formatting (`both_or_table_gap`)
+===============================================================================
+
+**Report:** `10.000` vs `10`, `0.1500` vs `0.15` — values equivalent.
+
+**Not a reverse logic error** — export or validator string formatting.
+
+**Task 4 options (pick one):**
+1. **Export formatting:** write floats with fixed decimal places matching SurLab
+   convention (e.g. 3 decimals for `__s` fields) in `nwb_reverse_trial_info.py`.
+2. **Task 5 tolerance:** numeric compare with epsilon in `roundtrip_validation.py`
+   for trialInfo time columns (may already partially exist — verify).
+
+Recommend **both**: reasonable export precision + numeric compare in validator.
+
+===============================================================================
+§7 — `task4_not_exported` / skipped schema rows (expected until forward lands)
+===============================================================================
+
+These are **not reader bugs** — reverse export omitted because NWB lacks target
+or row is validate-only:
+
+| Check | Reason | Action |
+|-------|--------|--------|
+| spikeTimes schema layout (`X_dim`, `X_size`, …) | validate_only | Reverse may **impute** from arrays on export (report notes this); optional Task 4 enhancement |
+| spikeTimes filters / quality in schema | forward gap → SurLabSchema_spikeTimes | Task 4 reader after Task 2 forward |
+| spikeWaves schema rate | §3 waveform_rate reader | Task 4 |
+| `wheel_behTSeries` dataset_specific | not in conversion table | Task 1 policy or LabMetaData — separate handoff |
+| `experimentDesc.pdf` | not in NWB | skip |
+
+Tag in reverse report as `task4_not_exported` until NWB source exists.
+
+===============================================================================
+§8 — Ophys probe Device names on reverse (informational)
+===============================================================================
+
+Reverse may export `{datatypeID}_device` = `GCaMP8m_traces_device` for ophys
+placeholder devices. That is **expected** until Task 1 `{datatypeID}_microscope`
+lands and Task 2 replaces placeholders.
+
+Do **not** confuse with ecephys `spikeTimes_probe` — different device namespace.
+
+===============================================================================
+Task 4 deliverables (checklist)
+===============================================================================
+
+1. **Probe resolver** in `nwb_table_reader.py` — fix §1 (unit tests required).
+2. **Retarget sorting_software read** to probe Device.description (§1).
+3. **`SurLabSchema_spikeTimes` export** — sessionInfo + schema mirrors (§2).
+4. **`waveform_rate` read** for spikeWaves rate (§3).
+5. **behEvents unit parse** → plain `time__s` (§5).
+6. **trialInfo float formatting** or validator tolerance (§6).
+7. **Remove spikeWaves `area` export** after Task 1 (§4).
+8. Re-run kitchen-sink roundtrip; expect §1/3/5/6 mismatches cleared without
+   waiting on all Task 2 forward work; §2 partially clears after forward writes
+   SurLabSchema_spikeTimes + quality_metric_description.
+
+===============================================================================
+Suggested test fixture (tests_task4.py)
+===============================================================================
+
+Minimal NWB matching kitchen-sink failure mode:
+- devices: `GCaMP8m_traces_device` (MISSING…), `Neuropixel1.0` (key=value desc)
+- processing: `behavior` module with long description
+- units: 2+ rows, optional `device` column → Neuropixel1.0
+- units.waveform_rate = 30000
+- events/<id> EventsTable with `data_unit_measurement=time__s` in description
+
+Assert reverse sessionInfo:
+- `spikeTimes_probe` == `Neuropixel1.0`
+- `spikeTimes_acquisition_software` == `SpikeGLX`
+- `spikeTimes_sorting_software` == `Kilosort4`
+- `spikeWaves_sample_frequency__Hz` == `30000`
+- `lick_behEvents_data_unit_measurement` == `time__s`
+
+===============================================================================
+Out of scope for this handoff
+===============================================================================
+
+- Forward writes (Task 2) — see task2_forward_gaps_decisions_kitchen_sink.txt
+- Conversion table edits (Task 1)
+- Full spikeTimes reverse data arrays (already partially implemented)
+- ndx-pose, background images, microscope Device (separate handoffs)
+
+EOF

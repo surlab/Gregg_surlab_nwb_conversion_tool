@@ -1,0 +1,8 @@
+groups:
+- neurodata_type_def: SurLabSchemaMeta
+  neurodata_type_inc: LabMetaData
+  doc: JSON leftovers for one SurLab datatype stream
+  datasets:
+  - name: schema_json
+    dtype: text
+    doc: JSON object of SurLab fields without core NWB homes

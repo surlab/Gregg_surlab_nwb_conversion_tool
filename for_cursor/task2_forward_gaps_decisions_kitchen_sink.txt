@@ -1,0 +1,161 @@
+Task 2 — forward gap decisions (kitchen-sink roundtrip, Aug 2026)
+================================================================
+Locked from user Q&A. **No implementation in this file** — reference for next
+Task 2 pass + Task 1 table edits where noted.
+
+Source report:
+  demo_data/kitchen_sink_demo/KitchenSink01_20260827_roundtrip/
+  roundtrip_validation_report.csv
+
+===============================================================================
+A. acquisition_software / sorting_software — NOT a processing-module ordering bug
+===============================================================================
+
+**User correction:** Sorting software is not “lost” because `behavior` was
+created first. Both belong on the **ecephys probe Device** (`spikeTimes_probe`
+→ `Device.name`, e.g. `Neuropixel1.0`).
+
+**Forward policy (locked):**
+- `spikeTimes_acquisition_software` → probe `Device.description`
+  (key=value: `acquisition_software=SpikeGLX` or plain text if single field).
+- `spikeTimes_sorting_software` → **same probe Device.description**
+  (key=value: `sorting_software=Kilosort4`).
+- SessionInfo-first dual-read; schema mirror optional; fail if both disagree.
+- **Do not** require a dedicated `processing/ecephys` module for sorting
+  software in v1.
+- **Do not** read sorting software from `_first_processing_module()` on reverse;
+  read from the probe Device linked to spikeTimes (Units.device when present,
+  else Device named `spikeTimes_probe`).
+
+**Task 1 follow-up (table):** Update rows for `spikeTimes_sorting_software` from
+`NWBFile/processing` → `processing_module_description` to
+`NWBFile/devices` → `Device.description` (same target as acquisition_software,
+distinct key in key=value text). Until Task 1 updates table, Task 2 follows
+this decision doc.
+
+Roundtrip failure was **reader targeting wrong NWB object**, not missing forward
+write (forward NWB already had
+`Neuropixel1.0.description = acquisition_software=SpikeGLX; sorting_software=Kilosort4`).
+
+===============================================================================
+B. spikeTimes_sample_frequency__Hz — infer / schema, not Units column
+===============================================================================
+
+**User:** Can infer from spikeTimes context.
+
+**Locked policy:**
+- **Do not** add a per-unit `sampling_rate__Hz` column on Units for a session
+  constant.
+- Store in **`SurLabSchema_spikeTimes`** LabMetaData (same pattern as LFP rate
+  in `SurLabSchema_lfp`).
+- Value comes from sessionInfo `spikeTimes_sample_frequency__Hz` (canonical) or
+  schema mirror.
+- Not inferable from spike time *values* (timestamps are post-sorting seconds);
+  “infer” means “belongs to spikeTimes stream metadata,” not computed from array.
+
+**Task 1 follow-up:** Change table target from
+`NWBFile/units` → `custom_column_sampling_rate__Hz` to
+`NWBFile/lab_meta_data/SurLabSchema_spikeTimes` → `sample_frequency__Hz`.
+
+===============================================================================
+C. spikeTimes_data_unit_measurement (`time__s`) — NWB convention, no column
+===============================================================================
+
+**User:** Inferred from spikeTimes / NWB forces seconds?
+
+**Locked policy:**
+- NWB **`Units.spike_times` are in seconds** (SI). No separate unit column
+  required for the spike-time axis.
+- **Do not** write `data_unit_measurement` as a Units DynamicTable column.
+- Optional: document in **`SurLabSchema_spikeTimes`** for SurLab roundtrip
+  fidelity (`data_unit_measurement=time__s`), or treat sessionInfo field as
+  validate-only documentation (Task 1 choose one; Task 2 prefers SurLabSchema
+  mirror for reverse export of sessionInfo column).
+- Reverse export of sessionInfo column can emit `time__s` from schema or static
+  convention without reading a Units column.
+
+**Task 1 follow-up:** Move or mark table row as SurLabSchema or validate-only;
+remove `custom_column_data_unit_measurement` target for spikeTimes.
+
+===============================================================================
+D. spikeTimes_quality_metric — confirmed
+===============================================================================
+
+- SessionInfo `spikeTimes_quality_metric` (e.g. `binary_good_unit_0_1`) →
+  **`Units.quality_metric_description`** — one constant description for the
+  column meaning.
+- Per-unit values stay in `spikeTimes_metadata.csv` → `quality` column.
+
+===============================================================================
+2. One shared probe Device
+===============================================================================
+
+**Locked:** One `Device` per distinct probe name (`Neuropixel1.0`). spikeTimes,
+spikeWaves, and LFP share it when sessionInfo probe fields match.
+
+**Forward:**
+- `Units.device` → probe Device for every unit (spikeTimes stage).
+- spikeWaves reuses existing Device; does not create a parallel probe Device.
+- LFP electrode group → same Device (already implemented).
+
+**Reverse:** Resolve probe fields from **Units.device** or named probe Device,
+never `_first_device()` when ecephys modalities present.
+
+===============================================================================
+3. spikeWaves sample frequency — table fix
+===============================================================================
+
+**User:** Update table to match PyNWB.
+
+**Locked:**
+- `spikeWaves_sample_frequency__Hz` → **`Units.waveform_rate`** (scalar on
+  Units table), not `custom_column_sampling_rate__Hz`.
+- `spikeWaves_data_unit_measurement` stays in **`SurLabSchema_spikeWaves`**
+  (PyNWB fixes waveform amplitude units; SurLab token preserved in schema_json).
+
+**Task 1:** Update conversion table rows (sessionInfo + schema mirror).
+
+===============================================================================
+4. spikeWaves `area` — remove from spec; fail if present
+===============================================================================
+
+See **`for_cursor/task1_handoff_spikewaves_no_area_column.txt`**.
+
+- Region labels: **spikeTimes_metadata `area` only** → `Units.brain_area`.
+- spikeWaves must not supply `area`.
+- Validator **fail** if spikeWaves metadata includes `area` or if conflicting
+  region labels ever appear for same unit (defensive).
+
+===============================================================================
+5. behEvents `data_unit_measurement` — Task 2 choice (locked)
+===============================================================================
+
+**Pattern (match LFP / behTSeries):**
+- Forward: EventsTable / acquisition series **`description`** uses parseable
+  key=value: `data_unit_measurement=time__s` (optional prefix:
+  `SurLab behEvents stream <datatypeID>; ...`).
+- Reverse: parse `data_unit_measurement` from description → schema /
+  sessionInfo column returns plain `time__s`.
+- Also mirror in **`SurLabSchema_<datatypeID>`** when other schema keys exist.
+
+No long opaque description string as the canonical roundtrip value.
+
+===============================================================================
+Remaining forward work checklist (Task 2, after Task 1 table sync)
+===============================================================================
+
+1. `SurLabSchema_spikeTimes` — filters + sample_frequency__Hz (+ optional
+   data_unit_measurement for roundtrip).
+2. Probe Device — sessionInfo dual-read for acquisition + sorting software;
+   ensure `Units.device` populated.
+3. `quality_metric_description` Units column from sessionInfo.
+4. Reverse reader — probe Device for software fields; waveform_rate for
+   spikeWaves rate; behEvents description parsing.
+5. Validator — spikeWaves `area` forbidden (after Task 1).
+
+**Explicitly out of scope for this pass:**
+- Dedicated ecephys processing module for Kilosort.
+- Per-unit sampling_rate column on Units for spikeTimes.
+- Per-unit data_unit column for spike time axis.
+
+EOF

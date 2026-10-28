@@ -265,7 +265,22 @@ These supersede earlier notes in §1 about temporary per-stage file guards.
   electrode/Units linkage deferred until table specifies it for this PyNWB version)
 - trialInfo -> NWB Trials / TimeIntervals (table-driven custom columns; legacy
   trialInfo headers normalized in memory; dataset_specific extras preserved)
-- traces, behTSeries: table rows exist; handlers TBD (table gaps logged)
+- traces (`*_traces`) -> ophys RoiResponseSeries + ImagingPlane/OpticalChannel +
+  PlaneSegmentation; leftovers in `lab_meta_data['SurLabSchema_<datatypeID>']`
+  via registered `ndx-surlab-schema` (`schema_json`); required PyNWB scaffolding
+  SurLab lacks uses `MISSING_REQUIRED_FOR_NWB`
+- behTSeries (`*_behTSeries`) -> stock `acquisition/<datatypeID>` TimeSeries +
+  `processing/behavior/<datatypeID>_features` DynamicTable (row i ↔ data[:, i]);
+  `sample_frequency__Hz` in SurLabSchema when timestamps are written (PyNWB
+  forbids rate+timestamps); no ndx-pose
+- lfp -> stock `acquisition/lfp` ElectricalSeries with linked electrodes table
+  from `lfp_metadata.csv` (LFP-only); `depth__um`→z, optional x/y→NaN when absent;
+  filters/rate → `SurLabSchema_lfp`; reuses Device if spikeTimes registered probe
+- spikeWaves -> `Units.waveforms` + `waveform_rate`; snippet timestamps →
+  `SurLabSchema_spikeWaves`; align to existing Units by `unit_ID`
+- behEvents (`*_behEvents`) -> stock `events/<datatypeID>` EventsTable (timestamp +
+  annotation per event) + `processing/behavior/<datatypeID>_events` DynamicTable
+  (row ↔ object-array index); LFP reuses `spikeTimes_probe` when `lfp_probe` absent
 
 **Task 4 coupling**
 - Reverse conversion must eventually read the same placements (notes prefix,

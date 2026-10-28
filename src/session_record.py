@@ -39,10 +39,25 @@ def normalize_session_record_keys(raw_record: Dict[str, str]) -> Dict[str, str]:
 
 
 def field_non_empty(value: object) -> bool:
+    """True when a SurLab cell/schema value should be written to NWB.
+
+    Treats MATLAB-style empties (``[]``, empty lists/arrays) as missing so
+    legacy schema keys like ``sampFreq: []`` do not become float('[]').
+    """
     if value is None:
         return False
+    if isinstance(value, (list, tuple, set, dict)) and len(value) == 0:
+        return False
+    if hasattr(value, "size") and not isinstance(value, (str, bytes)):
+        try:
+            if int(value.size) == 0:
+                return False
+        except (TypeError, ValueError):
+            pass
     as_text = str(value).strip()
-    return as_text != ""
+    if as_text in {"", "[]", "{}", "nan", "NaN", "NA", "n/a", "None", "none"}:
+        return False
+    return True
 
 
 def truthy_flag(value: object) -> bool:

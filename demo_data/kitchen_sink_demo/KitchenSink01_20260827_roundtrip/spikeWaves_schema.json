@@ -1,0 +1,10 @@
+{
+  "X_dim": "waveform_sample",
+  "X_size": 40,
+  "Y_dim": "unit",
+  "Y_size": 10,
+  "clustering_algorithm": "Kilosort4",
+  "data_unit_measurement": "amplitude__au",
+  "probe": "Neuropixel1.0",
+  "sample_frequency__Hz": 30000.0
+}

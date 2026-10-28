@@ -27,7 +27,12 @@ from src.conversion_table import (
     read_conversion_table,
     row_applies_to_session,
 )
+from src.nwb_beh_events import apply_beh_events
+from src.nwb_beh_tseries import apply_beh_tseries
+from src.nwb_lfp import apply_lfp
 from src.nwb_spike_times import apply_spike_times, warn_zero_time_reference
+from src.nwb_spike_waves import apply_spike_waves
+from src.nwb_traces import apply_traces
 from src.nwb_trial_info import apply_trial_info
 from src.session_record import load_session_record
 from src.surlab_paths import discover_datatypes_from_files, dataset_id_from_dir
@@ -37,7 +42,8 @@ logger = logging.getLogger(__name__)
 
 # Datatypes with dedicated forward handlers (conversion-table stage numbers are
 # development labels only; default runs all of these when files are present).
-IMPLEMENTED_DATATYPES = {"spikeTimes", "trialInfo"}
+IMPLEMENTED_DATATYPES = {"spikeTimes", "trialInfo", "lfp", "spikeWaves"}
+IMPLEMENTED_DATATYPE_SUFFIXES = ("_traces", "_behTSeries", "_behEvents")
 
 
 @dataclass
@@ -72,7 +78,7 @@ def _report_unimplemented_rows(context: PlacementContext, discovered_datatypes: 
         condition = str(row.get("requirement_condition", "")).strip()
         if row_type in {"data_array", "timestamps_array"}:
             token = condition.split(":", 1)[-1] if ":" in condition else ""
-            if token in IMPLEMENTED_DATATYPES:
+            if _datatype_handler_implemented(token):
                 continue
             record_table_gap(
                 context,
@@ -110,8 +116,47 @@ def convert_surlab_session_to_nwb(config: ConversionConfig) -> ConversionResult:
     if "spikeTimes" in discovered_datatypes and _modality_enabled(config.dev_max_stage, 2):
         apply_spike_times(nwbfile, context, config.dataset_dir, config.session_dir)
 
+    if any(dtype.endswith("_traces") for dtype in discovered_datatypes) and _modality_enabled(
+        config.dev_max_stage, 3
+    ):
+        apply_traces(
+            nwbfile,
+            context,
+            config.dataset_dir,
+            config.session_dir,
+            discovered_datatypes,
+        )
+
+    if any(dtype.endswith("_behTSeries") for dtype in discovered_datatypes) and _modality_enabled(
+        config.dev_max_stage, 4
+    ):
+        apply_beh_tseries(
+            nwbfile,
+            context,
+            config.dataset_dir,
+            config.session_dir,
+            discovered_datatypes,
+        )
+
     if "trialInfo" in discovered_datatypes and _modality_enabled(config.dev_max_stage, 5):
         apply_trial_info(nwbfile, context, config.dataset_dir, config.session_dir)
+
+    if "lfp" in discovered_datatypes and _modality_enabled(config.dev_max_stage, 6):
+        apply_lfp(nwbfile, context, config.dataset_dir, config.session_dir, discovered_datatypes)
+
+    if "spikeWaves" in discovered_datatypes and _modality_enabled(config.dev_max_stage, 7):
+        apply_spike_waves(nwbfile, context, config.dataset_dir, config.session_dir)
+
+    if any(dtype.endswith("_behEvents") for dtype in discovered_datatypes) and _modality_enabled(
+        config.dev_max_stage, 8
+    ):
+        apply_beh_events(
+            nwbfile,
+            context,
+            config.dataset_dir,
+            config.session_dir,
+            discovered_datatypes,
+        )
 
     warn_zero_time_reference(context, config.session_dir, config.dataset_dir)
     _report_unimplemented_rows(context, discovered_datatypes)
@@ -134,3 +179,9 @@ def _modality_enabled(dev_max_stage: Optional[int], table_stage: int) -> bool:
     if dev_max_stage is None:
         return True
     return dev_max_stage >= table_stage
+
+
+def _datatype_handler_implemented(token: str) -> bool:
+    if token in IMPLEMENTED_DATATYPES:
+        return True
+    return any(token.endswith(suffix) for suffix in IMPLEMENTED_DATATYPE_SUFFIXES)

@@ -8,7 +8,7 @@ pushd "%REPO_DIR%"
 call conda activate surlab_nwb_conversion_tool
 call conda info --envs
 
-set DATASET_DIR=demo_data\SeqBias_AstroBlock_NPX
+set DATASET_DIR=demo_data\surlab_format_demo
 set CONVERSION_TABLE=sur_nwb_conversion_table.csv
 set LOG_FILE=%DATASET_DIR%\runlog_roundtrip_validation.txt
 

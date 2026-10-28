@@ -1,0 +1,9 @@
+{
+  "X_dim": "waveform_sample",
+  "X_size": 82,
+  "Y_dim": "unit",
+  "Y_size": 309,
+  "data_unit_measurement": "amplitude__au",
+  "probe": "Neuropixel1.0",
+  "sample_frequency__Hz": 30000.0
+}

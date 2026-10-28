@@ -1,0 +1,9 @@
+channel_ID,channel_label,area,grid_location,depth__um
+1,ch1,PFC,"0,0",20
+2,ch2,PFC,"0,1",40
+3,ch3,PFC,"1,0",60
+4,ch4,PFC,"1,1",80
+5,ch5,PFC,"2,0",100
+6,ch6,PFC,"2,1",120
+7,ch7,PFC,"3,0",140
+8,ch8,PFC,"3,1",160

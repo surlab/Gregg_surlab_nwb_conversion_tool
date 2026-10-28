@@ -1,0 +1,23 @@
+{
+  "X_dim": "time",
+  "X_size": 500,
+  "Y_dim": "features",
+  "Y_idx": [
+    0,
+    1,
+    2
+  ],
+  "Y_size": 3,
+  "data_unit_measurement": "mixed__see_metadata",
+  "detection_software": "DeepLabCut",
+  "fov_depth__um": 180.0,
+  "fov_height__pixels": 512,
+  "fov_width__pixels": 512,
+  "indicator": "pupil",
+  "laser_name": "Insight Pockels",
+  "objectives": "16X_0.8NA",
+  "pixel_size__um": 1.61,
+  "pixel_size_calibration": "calibrated from stage micrometer 2026-01-15",
+  "sample_frequency__Hz": 30.0,
+  "wavelength__nm": 920.0
+}

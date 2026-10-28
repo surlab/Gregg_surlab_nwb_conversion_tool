@@ -175,6 +175,10 @@ def create_nwbfile_from_table(context: PlacementContext, timezone_name: str = "U
         if is_keyword_sessioninfo_column(field_name, keyword_rules):
             continue
 
+        container, _ = parse_nwb_target(nwb_location, nwb_fieldname)
+        if container not in {"file", "subject"}:
+            continue
+
         converted = coerce_scalar(str(raw_value), nwb_type)
         _set_target(nwbfile, subject_fields, nwb_location, nwb_fieldname, converted, nwb_type)
 

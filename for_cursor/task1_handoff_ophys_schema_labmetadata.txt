@@ -1,0 +1,143 @@
+SurLab → NWB: Task 1 handoff — per-datatype schema LabMetaData (traces / ophys)
+================================================================================
+Audience: Task 1 (conversion table + documentation).
+Source: Task 2 design discussion (Aug 2026). Implement table/docs first; Task 2
+will code against the updated rows.
+
+*** APPLIED (Aug 2026) — Task 2: re-read `SurLab data format documentation.md`
+    section "Per-stream SurLabSchema LabMetaData" and `sur_nwb_conversion_table.csv`
+    (policy row `(per_stream_SurLabSchema_LabMetaData)` + stage-3 traces rows).
+    Decisions locked: one NWB target per value; leftovers in
+    `NWBFile/lab_meta_data/SurLabSchema_<datatypeID>`; layout = `validate_only`
+    (SurLab format validator); `indicator` → OpticalChannel.name;
+    `sample_frequency__Hz` → ImagingPlane.imaging_rate; dual FOV = two streams. ***
+
+-------------------------------------------------------------------------------
+Goal
+-------------------------------------------------------------------------------
+For modalities that use a SurLab ``<datatypeID>_schema.json`` (starting with
+optical **traces**, stage 3):
+
+1. Place as many fields as possible into **real, existing NWB / PyNWB attributes**.
+2. Do **not** duplicate layout information that is already implied by arrays,
+   timestamps, or ROI metadata tables.
+3. Move the **remaining schema contents** into a **labeled LabMetaData container
+   per datatype stream** — essentially a structured transfer of the schema, not
+   a long free-text ``description`` string.
+4. Prefer **LabMetaData under ophys** (or an ophys-linked name) over stuffing
+   schema into ``RoiResponseSeries.description`` / ImagingPlane description.
+
+-------------------------------------------------------------------------------
+Per-stream LabMetaData container (machine-readable rule)
+-------------------------------------------------------------------------------
+**One container per discovered ``<datatypeID>`` stream**
+(e.g. ``GCaMP8m_traces``, ``Neuropil_traces``).
+
+Suggested naming (Task 1 may refine; keep stable for Task 2 / Task 4):
+
+- NWB home: under the ophys processing path / ``NWBFile.lab_meta_data`` with a
+  clear SurLab prefix, e.g.
+  - ``lab_meta_data:SurLabSchema_<datatypeID>``
+  - or ``nwb_path`` style: ``lab_meta_data:SurLabOphysSchema.<datatypeID>``
+- Content: key/value (or small JSON blob) of schema fields that are **not**
+  mapped to a core NWB attribute and **not** classified as layout-only
+  (validate-only) fields.
+- Round-trip: reverse conversion should be able to rebuild
+  ``<datatypeID>_schema.json`` from (a) core NWB fields + (b) this container.
+  Do not rely on parsing prose descriptions.
+
+Use the same **pattern** later for other schema-bearing modalities
+(behTSeries, LFP, etc.): one labeled schema LabMetaData per ``<datatypeID>``,
+not one global blob for the whole file.
+
+-------------------------------------------------------------------------------
+Field placement policy (traces / stage 3)
+-------------------------------------------------------------------------------
+
+A) Core NWB attributes (prefer these when the mapping is honest)
+----------------------------------------------------------------
+Update ``nwb_location`` / ``nwb_fieldname`` (and ``nwb_path`` when introduced)
+to concrete targets — **no** ``custom_field`` token for these:
+
+| SurLab schema / data field     | Preferred NWB target |
+|--------------------------------|----------------------|
+| ``<datatypeID>_data``          | ``RoiResponseSeries.data`` (time × ROI) |
+| ``<datatypeID>_timestamps``    | ``RoiResponseSeries.timestamps`` |
+| ``data_unit_measurement``      | ``RoiResponseSeries.unit`` |
+| ``sample_frequency__Hz``       | ``ImagingPlane.imaging_rate`` when present (optional; timestamps remain authoritative) |
+| ``wavelength__nm``             | ``OpticalChannel.emission_lambda`` when present |
+| ``indicator``                  | OpticalChannel name and/or description (document which) |
+| ``roi_ID`` (+ ROI table cols)  | PlaneSegmentation / ROI table columns (``custom_column_*`` OK) |
+
+Required PyNWB scaffolding that SurLab does not supply (Device, ImagingPlane
+geometry, etc.): Task 2 will use **explicit missing markers**
+(e.g. names/descriptions containing ``MISSING_REQUIRED_FOR_NWB``), **not**
+invented scientific values. Table notes should allow that.
+
+B) Layout / validate-only (do not store as NWB duplicates)
+----------------------------------------------------------
+These describe array layout already enforced by data + timestamps + metadata
+row count. Table rows should mark them as **validate-only** (or equivalent
+note), not ``custom_field`` dump targets:
+
+- ``X_dim``, ``Y_dim``
+- ``X_size``, ``Y_size``
+- ``X_idx``, ``Y_idx`` (when timestamps / roi_ID already carry the same info)
+
+Canonical SurLab layout: axis 0 = time, axis 1 = ROI. Confirm ROI count against
+``*_metadata.csv`` row count; transpose only on mismatch.
+
+C) Schema LabMetaData (remaining schema keys)
+---------------------------------------------
+Everything else in ``<datatypeID>_schema.json`` that is not in (A) goes into
+the per-stream SurLab schema LabMetaData, including e.g.:
+
+- ``detection_software``
+- ``objectives``, ``laser_name``
+- ``pixel_size__um`` / ``pixel_size__au``, ``pixel_size_calibration``
+- ``fov_width__pixels``, ``fov_height__pixels``, ``fov_depth__um``
+- ``dataset_specific`` / unlisted schema keys (PMT, Pockels, etc.)
+
+Do **not** put these in a long concatenated description string.
+
+If a field is listed in both sessionInfo and schema (legacy mirror), document
+precedence (prefer sessionInfo when both present; still preserve schema copy in
+LabMetaData only if needed for round-trip — Task 1 choose one rule and state it).
+
+-------------------------------------------------------------------------------
+Conversion table column guidance
+-------------------------------------------------------------------------------
+- Replace ambiguous ``nwb_fieldname=custom_field`` on stage-3 schema rows with
+  either:
+  1. a concrete core attribute (section A), or
+  2. ``lab_meta_data:SurLabSchema_<datatypeID>.<field>`` / a single generic row
+     ``dataset_specific`` → ``lab_meta_data:SurLabSchema_<datatypeID>.*``, or
+  3. ``validate_only`` / ``N/A`` for layout fields (section B).
+- Keep one generic ``dataset_specific`` schema row for unlisted keys → same
+  LabMetaData container (``*`` wildcard), matching sessionInfo extras pattern.
+- Stage numbers remain development labels only; do not invent a new stage for
+  LabMetaData.
+
+-------------------------------------------------------------------------------
+Documentation (SurLab format doc + README notes)
+-------------------------------------------------------------------------------
+Add a short subsection under conversion / traces:
+
+- Per-stream ophys LabMetaData holds schema leftovers.
+- Core fluorescence path: RoiResponseSeries + timestamps + ROI table.
+- Layout fields are checked, not duplicated.
+- Missing required NWB scaffolding is marked missing, not fabricated.
+
+-------------------------------------------------------------------------------
+Out of scope for this handoff (Task 2 later)
+-------------------------------------------------------------------------------
+- Actual PyNWB implementation of the handler.
+- behTSeries / LFP schema containers (reuse this pattern when those stages land).
+- Changing SurLab on-disk schema JSON format.
+
+-------------------------------------------------------------------------------
+Demo reference for Task 1 / Task 2
+-------------------------------------------------------------------------------
+``demo_data/tricolor_projections/exp101-a1_20260204-gratings/``
+- Streams: ``GCaMP8m_traces``, ``Neuropil_traces``
+- Example: data shape (15335, 201), 201 metadata rows, timestamps length 15335.

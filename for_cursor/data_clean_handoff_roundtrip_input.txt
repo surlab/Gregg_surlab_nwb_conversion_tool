@@ -1,0 +1,94 @@
+Data-clean handoff — demo / input files that fail round-trip (2026-08-28)
+=========================================================================
+Date: 2026-08-28
+Status: **APPLIED** (2026-08-28 data-clean agent)
+  - SeqBias session AstroDREADD25_20240702: full canonical rewrite via
+    `developer_scripts/canonicalize_seqbias_session.py`
+  - surlab_format_demo / kitchen_sink_demo: rebuilders updated (Hz tones, NaN,
+    no spikeWaves `area`)
+  - Missing numeric cells: token **NaN** (see task1_handoff_missing_nan_and_tone_hz.txt)
+  - LFP `.mat` left as `.mat` (loader fix is separate)
+  - Extra SeqBias sessionInfo rows without folders: kept
+
+From: Task 5 round-trip on all demo_data/ datasets
+To: agent that rewrites SurLab input data only (not conversion table, not
+    Task 2/4 Python)
+
+Goal: make original files match canonical SurLab so Task 5 compares like-for-like.
+Do not paper over converter bugs by changing NWB writers.
+
+Canonical reference:
+
+- demo_data/surlab_format_demo/
+- demo_data/kitchen_sink_demo/
+- SurLab data format documentation.md
+- for_cursor/task1_handoff_trialinfo_action_correct.txt
+
+Primary target: demo_data/SeqBias_AstroBlock_NPX/
+
+----------------------------------------------------------------------
+1. SeqBias sessionInfo — age__days
+----------------------------------------------------------------------
+
+Canonical: numeric days, or **empty cell** if unknown. Do not use U / UNKNOWN / NaN.
+Task 5 already tags this data_or_spec.
+
+----------------------------------------------------------------------
+2. SeqBias trialInfo — numeric cells with unit suffixes
+----------------------------------------------------------------------
+
+  tone_frequency__Hz  orig 4kHz   → **4000** (header is Hz; convert kHz→Hz)
+  tone_intensity__dB  orig 35dB   → **35**
+
+Do **not** strip to 4 under an `__Hz` header.
+
+----------------------------------------------------------------------
+3. SeqBias trialInfo — action / correct / missing
+----------------------------------------------------------------------
+
+- column action (legacy output is ingest alias only)
+- correct: correct | incorrect or empty (empty for early press)
+- numeric missing: token **NaN** (not empty cell)
+- trial_type: hit|miss|fa|cr|aborted, not early_press in that column
+
+----------------------------------------------------------------------
+4. SeqBias LFP array (channels × time → time × channels)
+----------------------------------------------------------------------
+
+Transpose `lfp_data` to **(n_time, n_channels)** and set schema
+`X_dim=time`, `Y_dim=channel`, matching sizes. Prefer `.npz` for the
+rewritten array (large; gitignored). Leave timestamps aligned to time axis.
+
+----------------------------------------------------------------------
+5. SeqBias spikeWaves schema — MATLAB empty sampFreq []
+----------------------------------------------------------------------
+
+Rewrite schema keys; replace empty list with real sample_frequency__Hz.
+
+----------------------------------------------------------------------
+6. surlab_format_demo / kitchen_sink reaction_time__s
+----------------------------------------------------------------------
+
+Keep / write token **NaN** for missing reaction times (not empty cells).
+**Exception:** missing `age__days` uses an **empty cell**, not NaN.
+
+----------------------------------------------------------------------
+7. Do not treat as data bugs
+----------------------------------------------------------------------
+
+| Observation | Owner |
+|-------------|--------|
+| tricolor Neuropil empty on reverse | Task 2 |
+| spikeWaves_data_unit_measurement empty on reverse | Task 1/4 |
+| trial float formatting | Task 4 |
+
+----------------------------------------------------------------------
+8. How to verify after cleaning
+----------------------------------------------------------------------
+
+  python developer_scripts/canonicalize_seqbias_session.py
+  python developer_scripts/build_surlab_format_demo.py
+  python developer_scripts/build_kitchen_sink_demo.py
+  python scripts/run_surlab_format_validation.py --dataset-dir demo_data/SeqBias_AstroBlock_NPX
+  python scripts/run_surlab_format_validation.py --dataset-dir demo_data/surlab_format_demo
+  python scripts/run_surlab_format_validation.py --dataset-dir demo_data/kitchen_sink_demo

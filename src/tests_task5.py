@@ -52,6 +52,25 @@ def test_values_match_detects_difference():
     assert "Harvard" in detail
 
 
+def test_values_match_float_string_equivalence():
+    config = ComparisonConfig(Path("."), Path("sur_nwb_conversion_table.csv"))
+    matched, detail = _values_match("wavelength__nm", "920", "920.0", config)
+    assert matched
+    assert detail == ""
+    matched, detail = _values_match("sample_frequency__Hz", "10.000", "10", config)
+    assert matched
+    matched, detail = _values_match("pixel_size__um", "1.60953093926267", "1.6095309392626701", config)
+    assert matched
+
+
+def test_scalar_strings_match_rejects_different_numbers():
+    from src.roundtrip_validation import _scalar_strings_match
+
+    config = ComparisonConfig(Path("."), Path("sur_nwb_conversion_table.csv"))
+    assert not _scalar_strings_match("10", "11", config)
+    assert not _scalar_strings_match("abc", "10", config)
+
+
 def test_status_constants():
     assert STATUS_MATCH == "match"
     assert STATUS_MISMATCH == "mismatch"
@@ -82,10 +101,53 @@ def test_attribute_task2_when_nwb_missing():
     assert owner == "task2_forward"
 
 
-def test_array_allclose_behavior():
-    left = np.array([0.0, 1.0, 2.0])
-    right = np.array([0.0, 1.0, 2.0000001])
-    assert np.allclose(left, right, rtol=1e-6, atol=1e-6)
+def test_expand_known_sessioninfo_fields_binds_datatype_templates():
+    from src.conversion_table import expand_known_sessioninfo_fields
+
+    known = {"institution", "<datatypeID>_indicator", "spikeTimes_probe"}
+    expanded = expand_known_sessioninfo_fields(known, {"GCaMP8m_traces", "Neuropil_traces"})
+    assert "GCaMP8m_traces_indicator" in expanded
+    assert "Neuropil_traces_indicator" in expanded
+    assert "GCaMP8m_traces" in expanded
+    assert "institution" in expanded
+
+
+def test_compare_json_optional_empty_original_not_mismatch(tmp_path):
+    from src.roundtrip_validation import _compare_json_field, STATUS_SKIPPED_ORIGINAL_MISSING, STATUS_MATCH
+
+    config = ComparisonConfig(Path("."), Path("conversion_table.csv"))
+    original = tmp_path / "orig.json"
+    roundtrip = tmp_path / "rt.json"
+    original.write_text('{"Y_idx": [1, 2]}', encoding="utf-8")
+    roundtrip.write_text('{"Y_idx": [1, 2], "X_idx": [0.0, 0.1]}', encoding="utf-8")
+    status, _ = _compare_json_field(original, roundtrip, "X_idx", config, requirement_level="optional")
+    assert status == STATUS_SKIPPED_ORIGINAL_MISSING
+    status, _ = _compare_json_field(original, roundtrip, "Y_idx", config, requirement_level="optional")
+    assert status == STATUS_MATCH
+
+
+def test_compare_json_float_string_equivalence(tmp_path):
+    from src.roundtrip_validation import _compare_json_field, STATUS_MATCH
+
+    config = ComparisonConfig(Path("."), Path("conversion_table.csv"))
+    original = tmp_path / "orig.json"
+    roundtrip = tmp_path / "rt.json"
+    original.write_text('{"sample_frequency__Hz": 15}', encoding="utf-8")
+    roundtrip.write_text('{"sample_frequency__Hz": 15.0}', encoding="utf-8")
+    status, _ = _compare_json_field(original, roundtrip, "sample_frequency__Hz", config)
+    assert status == STATUS_MATCH
+
+
+def test_compare_json_pixel_size_alias(tmp_path):
+    from src.roundtrip_validation import _compare_json_field, STATUS_MATCH
+
+    config = ComparisonConfig(Path("."), Path("conversion_table.csv"))
+    original = tmp_path / "orig.json"
+    roundtrip = tmp_path / "rt.json"
+    original.write_text('{"pixel_size": 1.5}', encoding="utf-8")
+    roundtrip.write_text('{"pixel_size__um": 1.5}', encoding="utf-8")
+    status, _ = _compare_json_field(original, roundtrip, "pixel_size__um", config, requirement_level="recommended")
+    assert status == STATUS_MATCH
 
 
 def test_normalize_modality_flag_treats_empty_as_zero():

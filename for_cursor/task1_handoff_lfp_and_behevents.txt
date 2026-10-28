@@ -1,0 +1,203 @@
+SurLab → NWB: Task 1 handoff — LFP (stage 6) + behEvents (stage 8)
+===================================================================
+Audience: Task 1 (conversion table + documentation).
+Source: Task 2 design discussion (Aug 2026). Update table/docs first; Task 2
+will implement forward conversion against the updated rows.
+
+Status: **APPLIED** (Task 1 table + docs updated). Task 2 implements forward conversion against updated rows.
+
+Related applied handoff: `for_cursor/task1_handoff_behtseries_timeseries_feature_table.txt`
+(same companion-table pattern for behEvents metadata).
+
+Stage 7 (spikeWaves): no Task 1 placement fork — stock `Units.waveforms` +
+existing table rows; Task 2 implements after LFP.
+
+===============================================================================
+PART A — LFP (stage 6): linked ElectricalSeries + electrodes table
+===============================================================================
+
+Goals
+-----
+1. Core LFP data in **stock PyNWB only** (`ElectricalSeries` + linked
+   `electrodes` table). No custom extension for arrays or channel identity.
+2. Use PyNWB’s **formal link**: `ElectricalSeries.electrodes` →
+   `DynamicTableRegion` on `general/extracellular_ephys/electrodes`.
+3. Build an **LFP-only electrodes table** from `lfp_metadata.csv` (do not
+   merge with spikeTimes / Units rows in this phase).
+4. Rare schema leftovers (filters, descriptive rate when timestamps present)
+   → existing `SurLabSchema_lfp` LabMetaData (`ndx-surlab-schema`).
+
+Locked placement
+----------------
+
+A) Stream arrays → stock ElectricalSeries in acquisition
+| SurLab | NWB |
+| ------ | --- |
+| `lfp_data.*` | `NWBFile/acquisition/lfp` → `ElectricalSeries.data` |
+| `lfp_timestamps.*` | same object → `ElectricalSeries.timestamps` |
+| resolved `lfp_data_unit_measurement` | `ElectricalSeries.unit` |
+| resolved `lfp_sample_frequency__Hz` | **Not** on series when timestamps written (PyNWB forbids rate + timestamps) → `SurLabSchema_lfp` key `sample_frequency__Hz` |
+
+Rules:
+- Fixed stream ID **`lfp`** → acquisition object name **`lfp`**.
+- Canonical data shape **`(n_time, n_channels)`**; transpose on ingest if needed.
+- **Timestamps are authoritative** for the session clock.
+- Remove remaining **SPECULATIVE** wording on LFP data/timestamps rows once
+  targets are concrete (`acquisition/lfp`, `ElectricalSeries.data/timestamps`).
+
+B) Channel metadata → stock electrodes table (linked, LFP-only)
+| SurLab `lfp_metadata.csv` row `i` | NWB `general/extracellular_ephys/electrodes` |
+| --------------------------------- | --------------------------------------------- |
+| row order | column `i` of `ElectricalSeries.data` |
+| `channel_ID` | table row `id` |
+| `channel_label` | custom column `channel_label` |
+| `area` | `location` |
+| `depth__um` | **`z`** (primary depth axis; most important geometry) |
+| `channel_x_coordinate` (NEW optional) | **`x`** |
+| `channel_y_coordinate` (NEW optional) | **`y`** |
+| `grid_location` | custom column `grid_location` |
+| other / `dataset_specific` columns | additional electrode custom columns |
+
+Rules:
+- **One electrode row per LFP channel**; region order `[0..n_channels-1]`.
+- **`ElectricalSeries.electrodes`** = `DynamicTableRegion` over those rows
+  (explicit PyNWB link — not convention-only).
+- **LFP-only table**: populate from `lfp_metadata.csv` only. Do not require
+  merging with spikeTimes metadata in this phase.
+- When **`channel_x_coordinate` / `channel_y_coordinate` absent**: write
+  `x=NaN`, `y=NaN` (valid in PyNWB; verified). **`z = depth__um`** when
+  present; else `z=NaN` + `MISSING_REQUIRED_FOR_NWB` policy only if required
+  fields would otherwise be empty.
+- **`imp`** and **`filtering`**: required by `add_electrode`; use explicit
+  placeholders (`MISSING_REQUIRED_FOR_NWB` or documented sentinel) when SurLab
+  does not supply them — do not invent scientific values.
+
+C) Probe / device / group
+| SurLab | NWB |
+| ------ | --- |
+| `lfp_probe` (sessionInfo) / schema `probe` | `Device.name` |
+| (derived) | one `ElectrodeGroup` for this LFP stream, linked to that Device |
+
+Rules:
+- Same physical probe may repeat **`lfp_probe`** and **`spikeTimes_probe`**
+  text; shared **Device name** is OK. Electrode **rows** remain LFP-scoped.
+- Update table notes to say **Device linked to LFP electrodes** (not deferred).
+
+D) Layout + schema leftovers (unchanged policy)
+- `X_dim`, `Y_dim`, `X_size`, `Y_size`, `X_idx`, `Y_idx` → **`validate_only`**.
+- `filter_type`, `filter_cutoff_*` → **`SurLabSchema_lfp`** (no core filter object).
+- Unlisted schema keys → **`SurLabSchema_lfp`**.
+
+Task 1 deliverables — LFP
+-------------------------
+1. **Add optional metadata columns** to SurLab format docs + table (stage 6):
+   - `channel_x_coordinate` — optional, float, electrode **x** (same naming
+     spirit as `roi_x_coordinate` on traces).
+   - `channel_y_coordinate` — optional, float, electrode **y**.
+   - Document: when absent, converter uses NaN; **depth__um → z** remains primary.
+2. Update **`lfp_metadata.csv` rows** in `sur_nwb_conversion_table.csv`:
+   - Replace SPECULATIVE / vague `custom_column_*` tokens with concrete
+     electrode table targets (`id`, `location`, `x`, `y`, `z`, named custom columns).
+   - Add the two new optional coordinate rows.
+3. Update **data/timestamps rows** to **`NWBFile/acquisition/lfp`** with
+   `ElectricalSeries.data` / `ElectricalSeries.timestamps`; drop SPECULATIVE.
+4. Add one **policy row** (like behTSeries) e.g.
+   `(lfp_ElectricalSeries_and_electrodes_table)` summarizing link + LFP-only scope.
+5. Update **SurLab data format documentation.md**:
+   - LFP metadata table includes optional x/y coordinates.
+   - Subsection **“LFP → stock ElectricalSeries + linked electrodes table”**:
+     row ↔ channel ↔ `ElectricalSeries.electrodes` region index.
+
+===============================================================================
+PART B — behEvents (stage 8): AnnotationSeries + events table (behTSeries pattern)
+===============================================================================
+
+Goals
+-----
+1. Same **metadata convention as behTSeries**: stock acquisition object for
+   times + stock **`processing/behavior/<datatypeID>_events`** DynamicTable
+   for `event_ID` / `event_label` (and extras).
+2. **No formal metadata link** on acquisition (AnnotationSeries has no
+   `DynamicTableRegion` slot — unlike LFP `ElectricalSeries.electrodes`).
+   Alignment is **by row index** (metadata row `i` ↔ object-array slot `i`).
+3. No ndx-pose / custom extension for core event data.
+
+Locked placement
+----------------
+
+A) Event times → stock AnnotationSeries in acquisition
+| SurLab | NWB |
+| ------ | --- |
+| `<datatypeID>_data.*` (object array of 1-D float time vectors) | `NWBFile/acquisition/<datatypeID>` → **`AnnotationSeries`** |
+| times in each vector | `AnnotationSeries.timestamps` (seconds, session origin t=0) |
+| (derived) | `AnnotationSeries.data` = ones (or equivalent mark vector) per PyNWB convention |
+| resolved unit token | series `description` / documented unit semantics (`time__s`) |
+
+Rules:
+- **Object name = full `<datatypeID>`** (e.g. `lick_behEvents`).
+- **No separate timestamps file** for behEvents (times live in data).
+- **One stream, one event type (demo layout):** one `AnnotationSeries` named
+  `<datatypeID>`.
+- **One stream, multiple event types (future):** one `AnnotationSeries` per
+  metadata row, named `<datatypeID>_<event_label>` (sanitize label for NWB
+  name rules) OR document single-series policy if lab prefers — default:
+  **one AnnotationSeries per metadata row** when `Y_size > 1`.
+- Replace **`custom_TimeSeries_or_AnnotationSeries`** placeholder with
+  concrete **`AnnotationSeries`**.
+
+B) Event metadata → stock DynamicTable (companion table, convention link)
+| SurLab `<datatypeID>_metadata.csv` row `i` | NWB |
+| ------------------------------------------ | --- |
+| row order | object-array index `i` / matching AnnotationSeries when multi-type |
+| `event_ID` | `processing/behavior/<datatypeID>_events` column `event_ID` |
+| `event_label` | column `event_label` |
+| extras | additional DynamicTable columns |
+
+Rules:
+- Table name: **`<datatypeID>_events`** under processing module **`behavior`**.
+- **Row order = event-type index** in SurLab object array (same convention as
+  behTSeries row ↔ column).
+- **No DynamicTableRegion** on AnnotationSeries (not supported in core PyNWB).
+
+C) Schema / layout
+- Layout keys → **`validate_only`** (same as other streams).
+- Leftover schema scalars → **`SurLabSchema_<datatypeID>`** when no core home.
+
+Task 1 deliverables — behEvents
+-------------------------------
+1. Replace stage-8 **acquisition `custom_column_event_*`** rows with:
+   `NWBFile/processing/behavior/<datatypeID>_events` columns.
+2. Replace **`custom_TimeSeries_or_AnnotationSeries`** data row with
+   `NWBFile/acquisition/<datatypeID>` + `AnnotationSeries` (+ field names
+   for timestamps/data as appropriate).
+3. Add policy row **`(behEvents_AnnotationSeries_and_events_table)`** mirroring
+   behTSeries policy row text (companion table; convention link; no extension).
+4. Update stage-4 policy row cross-reference: behEvents uses **`_events`**
+   table suffix (not `_features`).
+5. Update **SurLab data format documentation.md** subsection for behEvents
+   NWB mapping (parallel to behTSeries subsection).
+
+===============================================================================
+PART C — Quick reference (Task 2 after Task 1)
+===============================================================================
+
+| Modality | Core acquisition | Metadata table | Link type |
+| -------- | ---------------- | -------------- | --------- |
+| behTSeries | `TimeSeries` `<datatypeID>` | `behavior/<datatypeID>_features` | convention (row ↔ column) |
+| **lfp** | **`ElectricalSeries` `lfp`** | **`general/extracellular_ephys/electrodes`** | **formal `electrodes` region** |
+| behEvents | `AnnotationSeries` `<datatypeID>` | `behavior/<datatypeID>_events` | convention (row ↔ array index) |
+
+Demo sessions for Task 2 e2e after table update:
+- LFP + spikeTimes + spikeWaves: `demo_data/surlab_format_demo/AstroDREADD25_20240702`
+- behEvents: `lick_behEvents` in same session
+
+One-line summaries for Task 1
+-------------------------------
+**LFP:** stock `acquisition/lfp` ElectricalSeries with **linked electrodes
+table** built from `lfp_metadata.csv` (LFP-only); optional
+`channel_x_coordinate` / `channel_y_coordinate` → x/y, **`depth__um` → z**;
+filters/rate-with-timestamps → `SurLabSchema_lfp`.
+
+**behEvents:** stock `acquisition/<datatypeID>` AnnotationSeries + stock
+`processing/behavior/<datatypeID>_events` DynamicTable (row ↔ event-type
+index); same companion-table pattern as behTSeries; no formal metadata link.

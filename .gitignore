@@ -104,6 +104,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.packaging_smoke_venv/
 env/
 venv/
 ENV/
@@ -133,6 +134,21 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# SurLab LFP continuous array only (~GB per session; GitHub limit 100 MB per file)
-demo_data/**/lfp_data_*.mat
+# SurLab LFP continuous arrays (~GB per session; GitHub 100 MB file limit).
+# Match minimal and verbose stems (lfp_data.npz, lfp_data_<dataset>_....npz).
+demo_data/**/lfp_data*.mat
+demo_data/**/lfp_data*.npz
+
+# Regenerable pipeline products under demo_data (rebuild with convert / reverse / validate bats).
+demo_data/**/*.nwb
+demo_data/**/roundtrip_surformat/
+demo_data/**/runlog*.txt
+demo_data/**/*_pynwb_validation_report.txt
+demo_data/**/nwb_validation_summary.csv
+demo_data/**/roundtrip_validation_*.csv
+demo_data/**/surlab_format_validation_*.csv
+demo_data/**/session_validation_*.csv
+demo_data/**/conversion_table_discovered.csv
+demo_data/**/reverse_conversion_report.csv
+
 demo_results/

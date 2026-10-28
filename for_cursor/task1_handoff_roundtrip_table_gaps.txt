@@ -1,0 +1,94 @@
+Task 1 handoff — table / spec gaps from round-trip (2026-08-28)
+================================================================
+Status: **APPLIED** (Task 1 table + docs). SpikeWaves unit → SurLabSchema;
+age unknown = empty/nan or 0 (not U); no SeqBias-legacy docs sentence (demos
+being cleaned to current spec). Task 4 still must reverse-read LabMetaData.
+
+Date: 2026-08-28
+From: Task 5 round-trip on all demo_data/ datasets
+To: Task 1 (conversion table + SurLab format documentation)
+
+Do not change Task 2/4 converter code. Do not rewrite demo CSVs (that is the
+data-clean agent: for_cursor/data_clean_handoff_roundtrip_input.txt).
+
+Source reports
+--------------
+- demo_data/kitchen_sink_demo/roundtrip_validation_summary.csv
+- demo_data/surlab_format_demo/AstroDREADD25_20240702/roundtrip_validation_report.csv
+- demo_data/SeqBias_AstroBlock_NPX/AstroDREADD25_20240702/roundtrip_validation_report.csv
+- Related: for_cursor/task2_forward_gaps_decisions_kitchen_sink.txt (spikeTimes
+  unit already moved to SurLabSchema; spikeWaves table row was not)
+
+----------------------------------------------------------------------
+1. Retarget spikeWaves_data_unit_measurement (blocking kitchen_sink)
+----------------------------------------------------------------------
+
+Table rows (repo-root sur_nwb_conversion_table.csv):
+
+- sessionInfo field spikeWaves_data_unit_measurement
+- spikeWaves_schema.json key data_unit_measurement
+
+Current nwb_location / nwb_fieldname:
+
+  NWBFile/units , custom_column_data_unit_measurement
+
+Problem:
+
+- PyNWB fixes Units.waveform_unit. Task 2 already stores the SurLab token in
+  SurLabSchema_spikeWaves and logs that the Units column is not writable.
+- Task 5 then sees NWB empty ("units column missing") and reverse sessionInfo
+  empty. kitchen_sink: 1 mismatch; surlab_format_demo: same field.
+
+Do what spikeTimes already does:
+
+- nwb_location = NWBFile/lab_meta_data/SurLabSchema_spikeWaves
+- nwb_fieldname = data_unit_measurement
+- notes: Units.waveform_unit is NWB-fixed; SurLab token lives in LabMetaData;
+  optional legacy mirror in spikeWaves_schema.json (fail if both non-empty and
+  disagree).
+
+After the table change, Task 4 must read that LabMetaData field (see
+for_cursor/task4_handoff_roundtrip_reverse_gaps.txt). Table-only change will
+not clear the mismatch until reverse follows the new row.
+
+----------------------------------------------------------------------
+2. Confirm SeqBias is legacy ingest, not the spec demo
+----------------------------------------------------------------------
+
+Canonical encoding already applied for surlab_format_demo
+(for_cursor/task1_handoff_trialinfo_action_correct.txt):
+
+- action (not output); correct = correct|incorrect|empty
+- trial_type = hit|miss|fa|cr|aborted
+- numeric trialInfo cells without unit suffixes
+
+SeqBias_AstroBlock_NPX still has old cells. Task 1: one sentence in the format
+docs that this folder is a legacy ingest fixture; format validation / round-trip
+"clean" criteria apply to surlab_format_demo and kitchen_sink_demo.
+
+Do not change conversion-table nwb_type to "string with kHz suffix" to paper
+over SeqBias. Data-clean agent owns rewriting those files if SeqBias must
+round-trip as canonical SurLab.
+
+----------------------------------------------------------------------
+3. age__days
+----------------------------------------------------------------------
+
+Spec: numeric days (ISO duration in NWB). SeqBias sessionInfo has age__days=U.
+That is invalid SurLab, not a missing table row. Docs may say: unknown age is
+empty, not U/UNKNOWN. Data-clean agent removes U.
+
+----------------------------------------------------------------------
+4. Out of scope for this handoff
+----------------------------------------------------------------------
+
+- Shared microscope Device description crash (Task 2)
+- trialInfo float rounding 23.6366 vs 23.637 (Task 4 export format)
+- reaction_time NaN vs empty (Task 4 + optional data-clean token)
+- MATLAB v7.3 LFP load (Task 2 loader and/or data-clean npz)
+
+Success criterion
+-----------------
+- spikeWaves unit rows match spikeTimes LabMetaData pattern
+- docs state which demos are canonical vs legacy
+- Task 4 handoff exists for the matching reverse read

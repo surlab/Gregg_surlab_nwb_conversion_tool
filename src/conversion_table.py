@@ -81,16 +81,38 @@ def expand_rows_for_datatypes(rows: List[Dict[str, str]], discovered_datatypes: 
 
 
 def _datatype_matches_template_row(row: Dict[str, str], datatype_id: str) -> bool:
-    condition = str(row.get("requirement_condition", "")).strip()
-    if condition == "if_datatype_present:<datatypeID>":
-        return True
+    """Bind <datatypeID> templates only to matching modality streams.
+
+    Stage-1 sessionInfo templates are duplicated by NWB target (ophys vs
+    acquisition). Match on ``nwb_location`` / stage so traces rows are not
+    applied to behTSeries (and vice versa).
+    """
     stage = parse_stage(row)
-    if datatype_id.endswith("_traces") and stage == 3:
-        return True
-    if datatype_id.endswith("_behTSeries") and stage == 4:
-        return True
-    if datatype_id.endswith("_behEvents"):
+    nwb_location = str(row.get("nwb_location", "")).strip().lower()
+    nwb_field = str(row.get("nwb_fieldname", "")).strip().lower()
+
+    if datatype_id.endswith("_traces"):
+        if stage == 3:
+            return True
+        if stage == 1:
+            return (
+                "/ophys" in nwb_location
+                or "lab_meta_data" in nwb_location
+                or nwb_field.startswith("surlabschema_")
+                or nwb_location == "nwbfile/devices"
+            )
         return False
+
+    if datatype_id.endswith("_behTSeries"):
+        if stage == 4:
+            return True
+        if stage == 1:
+            return "/acquisition" in nwb_location or "lab_meta_data" in nwb_location
+        return False
+
+    if datatype_id.endswith("_behEvents"):
+        return stage == 8
+
     return False
 
 
@@ -147,3 +169,14 @@ def known_sessioninfo_fieldnames(rows: List[Dict[str, str]]) -> List[str]:
             continue
         known.add(field_name)
     return sorted(known)
+
+
+def expand_known_sessioninfo_fields(known_fields: Set[str], discovered_datatypes: Set[str]) -> Set[str]:
+    """Expand ``<datatypeID>_…`` templates and include discovered stream identity columns."""
+    expanded: Set[str] = set(known_fields)
+    for name in list(known_fields):
+        if "<datatypeID>" in name:
+            for datatype_id in discovered_datatypes:
+                expanded.add(name.replace("<datatypeID>", datatype_id))
+    expanded.update(discovered_datatypes)
+    return expanded

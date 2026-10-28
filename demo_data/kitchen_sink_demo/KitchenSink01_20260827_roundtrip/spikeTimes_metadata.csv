@@ -1,0 +1,11 @@
+unit_ID,depth__um,area,spike_sorting_ID,quality
+1,100,PFC,1,0
+2,140,PFC,2,1
+3,180,PFC,3,1
+4,220,PFC,4,0
+5,260,PFC,5,1
+6,300,VISp,6,1
+7,340,VISp,7,0
+8,380,VISp,8,1
+9,420,VISp,9,1
+10,460,VISp,10,0

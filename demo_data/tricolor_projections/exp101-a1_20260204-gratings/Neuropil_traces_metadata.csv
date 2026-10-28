@@ -1,4 +1,4 @@
-roi_ID,roi_x_coordinate,roi_y_coordinate,roi_center_x,roi_center_y,area,iscell,fluorophore_class
+roi_ID,roi_x_coordinates,roi_y_coordinates,roi_center_x,roi_center_y,area,iscell,fluorophore_class
 0,405.0,360.0,410.0,363.0,VISp,1,unclassified
 1,185.0,470.0,190.0,473.0,VISp,1,unclassified
 2,253.0,467.0,256.0,471.0,VISp,1,unclassified

@@ -1,0 +1,39 @@
+Task 1 handoff — trialInfo action / early press / correct / trial_type
+======================================================================
+Date: 2026-08-27
+From: format-validation discussion (lab convention settled)
+To: Task 1 (conversion table + SurLab format documentation)
+
+*** APPLIED (Task 1, 2026-08-27) ***
+- output → action (legacy output is input-only alias; nwb_alt_fieldnames on table row)
+- correct: str correct|incorrect or missing; early_press forbidden in correct
+- trial_type: hit|miss|fa|cr|aborted; early_press forbidden; early trials → aborted
+- Early press: action=early_press, correct empty, trial_type=aborted
+- Legacy ingest: error→incorrect; 0/1→incorrect/correct; reverse writes canonical strings
+- action examples in notes: press, early_press, no_press, lick, early_lick, left_lick, right_lick, no_lick
+- Condition (go/nogo) remains dataset_specific until canonical name chosen
+- Demo: demo_data/surlab_format_demo trialInfo rebuilt via build_surlab_format_demo.py
+- Validator updated for correct/trial_type domain checks (Task 5 format validation)
+
+Re-check:
+  python scripts/run_surlab_format_validation.py --dataset-dir demo_data/surlab_format_demo
+
+-------------------------------------------------------------------------------
+Original request (kept for history)
+-------------------------------------------------------------------------------
+
+Please update `sur_nwb_conversion_table.csv` and the SurLab format documentation
+to match the conventions below. Do not leave early_press in `correct`.
+
+Settled model (four concepts)
+-----------------------------
+
+1. Condition (go/nogo) — optional; dataset_specific for now.
+
+2. Action — column `action` (replaces output). early_press belongs here.
+
+3. trial_type — hit, miss, fa, cr, aborted (not early_press).
+
+4. correct — correct|incorrect or missing; not early_press.
+
+Success criterion: table + docs + format validator enforce the above.

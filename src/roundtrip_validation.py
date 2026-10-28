@@ -13,13 +13,14 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 import numpy as np
 
 from src.conversion_table import (
+    expand_known_sessioninfo_fields,
     expand_rows_for_datatypes,
     is_informational_row,
     known_sessioninfo_fieldnames,
     read_conversion_table,
     row_applies_to_session,
 )
-from src.data_io import load_json, load_numeric_array, load_spike_times_by_unit
+from src.data_io import load_json, load_numeric_array, load_spike_times_by_unit, squeeze_object_array
 from src.session_record import (
     discover_session_dirs,
     find_session_info_csv,
@@ -288,6 +289,30 @@ def _resolve_roundtrip_file(
     )
 
 
+def _try_parse_float(text: str) -> Optional[float]:
+    """Return a float when text is a single numeric scalar, else None."""
+    cleaned = text.strip()
+    if cleaned == "":
+        return None
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def _scalar_strings_match(left: str, right: str, config: ComparisonConfig) -> bool:
+    """Compare normalized scalar strings; fall back to float tolerance when both parse."""
+    if left == right:
+        return True
+    left_num = _try_parse_float(left)
+    right_num = _try_parse_float(right)
+    if left_num is not None and right_num is not None:
+        return bool(
+            np.allclose(left_num, right_num, rtol=config.float_rtol, atol=config.float_atol, equal_nan=True)
+        )
+    return False
+
+
 def _normalize_scalar(value: object) -> str:
     if value is None:
         return ""
@@ -367,7 +392,7 @@ def _schema_json_value(session_dir: Path, datatype_id: str, schema_key: str) -> 
     if schema_path is None:
         return ""
     payload = load_json(schema_path)
-    return _normalize_scalar(payload.get(schema_key, ""))
+    return _normalize_scalar(_json_field_value(payload, schema_key))
 
 
 def _effective_sessioninfo_scalar(
@@ -455,6 +480,8 @@ def _values_match(field_name: str, original: object, roundtrip: object, config: 
 
     if left == right:
         return True, ""
+    if _scalar_strings_match(left, right, config):
+        return True, ""
     return False, f"orig={left!r} roundtrip={right!r}"
 
 
@@ -517,6 +544,7 @@ def _compare_metadata_csv_column(
     original_path: Path,
     roundtrip_path: Path,
     column_name: str,
+    config: ComparisonConfig,
 ) -> Tuple[bool, str]:
     original_values = _metadata_csv_column_values(original_path, column_name)
     roundtrip_values = _metadata_csv_column_values(roundtrip_path, column_name)
@@ -525,19 +553,49 @@ def _compare_metadata_csv_column(
     if len(original_values) != len(roundtrip_values):
         return False, f"row_count {len(original_values)} vs {len(roundtrip_values)}"
     for index, (left, right) in enumerate(zip(original_values, roundtrip_values)):
-        if left != right:
+        if not _scalar_strings_match(left, right, config):
             return False, f"row {index}: orig={left!r} roundtrip={right!r}"
     return True, ""
 
 
-def _compare_json_field(original_path: Path, roundtrip_path: Path, field_name: str) -> Tuple[bool, str]:
+# Legacy schema JSON keys seen in demos (canonical table names on the right).
+SCHEMA_JSON_KEY_ALIASES = {
+    "sampFreq": "sample_frequency__Hz",
+    "data_unit_meas": "data_unit_measurement",
+    "pixel_size": "pixel_size__um",
+}
+
+
+def _json_field_value(payload: Dict[str, object], field_name: str) -> object:
+    if field_name in payload:
+        return payload.get(field_name)
+    for legacy_key, canonical_key in SCHEMA_JSON_KEY_ALIASES.items():
+        if canonical_key == field_name and legacy_key in payload:
+            return payload.get(legacy_key)
+    return payload.get(field_name, "")
+
+
+def _compare_json_field(
+    original_path: Path,
+    roundtrip_path: Path,
+    field_name: str,
+    config: ComparisonConfig,
+    requirement_level: str = "optional",
+) -> Tuple[str, str]:
     original_json = load_json(original_path)
     roundtrip_json = load_json(roundtrip_path)
-    left = _normalize_scalar(original_json.get(field_name, ""))
-    right = _normalize_scalar(roundtrip_json.get(field_name, ""))
-    if left == right:
-        return True, ""
-    return False, f"orig={left!r} roundtrip={right!r}"
+    left = _normalize_scalar(_json_field_value(original_json, field_name))
+    right = _normalize_scalar(_json_field_value(roundtrip_json, field_name))
+    if left == right or _scalar_strings_match(left, right, config):
+        return STATUS_MATCH, ""
+    level = (requirement_level or "optional").strip().lower()
+    # Optional/recommended: empty original + reverse enrichment is not a mismatch.
+    if left == "" and right != "" and level in {"optional", "recommended", ""}:
+        return STATUS_SKIPPED_ORIGINAL_MISSING, "roundtrip filled optional empty original"
+    if left != "" and right == "" and level in {"optional", "recommended", ""}:
+        return STATUS_SKIPPED_ROUNDTRIP_MISSING, ""
+    return STATUS_MISMATCH, f"orig={left!r} roundtrip={right!r}"
+
 
 
 def _is_spike_times_data_file(path: Path) -> bool:
@@ -569,6 +627,16 @@ def _compare_arrays(original_path: Path, roundtrip_path: Path, config: Compariso
     roundtrip_array = load_numeric_array(roundtrip_path)
     if original_array.shape != roundtrip_array.shape:
         return False, f"shape {original_array.shape} vs {roundtrip_array.shape}"
+    if original_array.dtype == object or roundtrip_array.dtype == object:
+        original_series = squeeze_object_array(original_array)
+        roundtrip_series = squeeze_object_array(roundtrip_array)
+        if len(original_series) != len(roundtrip_series):
+            return False, f"series_count {len(original_series)} vs {len(roundtrip_series)}"
+        for index, (left, right) in enumerate(zip(original_series, roundtrip_series)):
+            if not np.allclose(left, right, rtol=config.float_rtol, atol=config.float_atol, equal_nan=True):
+                return False, f"series {index}: max_abs_diff={np.max(np.abs(left - right)):.6g}"
+        return True, ""
+
     if not np.allclose(
         original_array,
         roundtrip_array,
@@ -635,7 +703,10 @@ def _compare_table_row(
     datatype_id = str(row.get("datatype_id", "")).strip() or None
 
     if field_name == "dataset_specific":
-        known_fields = set(known_sessioninfo_fieldnames(read_conversion_table(config.conversion_table_path)))
+        known_fields = expand_known_sessioninfo_fields(
+            set(known_sessioninfo_fieldnames(read_conversion_table(config.conversion_table_path))),
+            snapshot.discovered_datatypes,
+        )
         roundtrip_row, roundtrip_path_obj = _roundtrip_sessioninfo_row(
             row,
             dataset_dir,
@@ -688,9 +759,14 @@ def _compare_table_row(
             return ComparisonRow(check, "n/a", "n/a", STATUS_SKIPPED_ORIGINAL_MISSING, "")
         if roundtrip_path is None:
             return ComparisonRow(check, str(original_path), "n/a", STATUS_SKIPPED_ROUNDTRIP_MISSING, "")
-        matched, detail = _compare_json_field(original_path, roundtrip_path, field_name)
-        status = STATUS_MATCH if matched else STATUS_MISMATCH
-        return ComparisonRow(check, str(original_path), str(roundtrip_path), status, detail)
+        matched_status, detail = _compare_json_field(
+            original_path,
+            roundtrip_path,
+            field_name,
+            config,
+            requirement_level=str(row.get("requirement_level", "optional")),
+        )
+        return ComparisonRow(check, str(original_path), str(roundtrip_path), matched_status, detail)
 
     if filename.endswith(".csv"):
         if "sessioninfo" in filename:
@@ -733,7 +809,7 @@ def _compare_table_row(
             return ComparisonRow(check, "n/a", "n/a", STATUS_SKIPPED_ORIGINAL_MISSING, "")
         if roundtrip_path is None:
             return ComparisonRow(check, str(original_path), "n/a", STATUS_SKIPPED_ROUNDTRIP_MISSING, "")
-        matched, detail = _compare_metadata_csv_column(original_path, roundtrip_path, field_name)
+        matched, detail = _compare_metadata_csv_column(original_path, roundtrip_path, field_name, config)
         status = STATUS_MATCH if matched else STATUS_MISMATCH
         return ComparisonRow(check, str(original_path), str(roundtrip_path), status, detail)
 
@@ -790,7 +866,7 @@ def _original_scalar_for_row(
 
     if filename.endswith(".json"):
         payload = load_json(original_resolved.path)
-        return _normalize_scalar(payload.get(field_name, ""))
+        return _normalize_scalar(_json_field_value(payload, field_name))
 
     if filename.endswith(".csv"):
         values = _metadata_csv_column_values(original_resolved.path, field_name)
@@ -843,7 +919,7 @@ def _roundtrip_scalar_for_row(
 
     if filename.endswith(".json"):
         payload = load_json(roundtrip_resolved.path)
-        return _normalize_scalar(payload.get(field_name, ""))
+        return _normalize_scalar(_json_field_value(payload, field_name))
 
     if filename.endswith(".csv"):
         values = _metadata_csv_column_values(roundtrip_resolved.path, field_name)
@@ -970,7 +1046,10 @@ def compare_session_roundtrip(
             if dataset_specific_done:
                 continue
             dataset_specific_done = True
-            known_fields = set(known_sessioninfo_fieldnames(table_rows))
+            known_fields = expand_known_sessioninfo_fields(
+                set(known_sessioninfo_fieldnames(table_rows)),
+                snapshot.discovered_datatypes,
+            )
             roundtrip_row, roundtrip_path = _roundtrip_sessioninfo_row(
                 row,
                 dataset_dir,

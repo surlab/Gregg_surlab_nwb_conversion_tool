@@ -9,7 +9,7 @@ pushd "%REPO_DIR%"
 
 if "%~1"=="" (
   echo Usage: run_convert_and_validate.bat PATH_TO_DATASET_DIR
-  echo Example: run_convert_and_validate.bat demo_data\SeqBias_AstroBlock_NPX
+  echo Example: run_convert_and_validate.bat demo_data\surlab_format_demo
   popd
   exit /b 1
 )
